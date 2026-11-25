@@ -1,1 +1,222 @@
-null
+{
+ "gerado": "24/11/2026",
+ "inicio": "2026-11-30",
+ "resumo": "Bloco de 4 semanas para sair de 1 para 3 corridas por semana e criar a base para a meia maratona de abril de 2027. O volume sobe aos poucos (13, 15, 17 e 13 km), a semana 4 é mais leve e termina com um teste de 5 km.",
+ "semanas": [
+  {
+   "titulo": "Semana 1 · Base (13 km)",
+   "foco": "Sair de 1 para 3 corridas por semana sem aumentar o tamanho de nenhum treino. Nenhuma corrida passa do que você já faz hoje (5 km). Tudo em ritmo leve.",
+   "dias": [
+    {
+     "dia": "Corrida 1",
+     "tipo": "Corrida leve",
+     "km": 4,
+     "descricao": "Ritmo confortável, de 6:45 a 7:15 por km (cerca de 28 a 30 min). Você deve conseguir conversar. Comece com 5 min de caminhada e termine com 5 min caminhando.",
+     "pre": [
+      "1 banana ou 1 maçã, de 10 a 30 min antes (como você já faz)",
+      "1 copo de água (200 a 300 ml) ao acordar"
+     ],
+     "pos": [
+      "Uma fruta + 1 barra de proteína em até 1 hora",
+      "Café da manhã completo: ovos com pão ou tapioca",
+      "Água ao longo da manhã"
+     ]
+    },
+    {
+     "dia": "Corrida 2",
+     "tipo": "Leve com acelerações",
+     "km": 4,
+     "descricao": "4 km leves (6:45 a 7:15 por km). Depois do 2º km, faça 4 acelerações de 20 s (por volta de 5:30 por km), com 1 min de trote entre elas. Servem para soltar a passada.",
+     "pre": [
+      "1 banana ou 1 maçã, de 10 a 30 min antes (como você já faz)",
+      "1 copo de água (200 a 300 ml) ao acordar"
+     ],
+     "pos": [
+      "Iogurte com frutas e granola",
+      "1 fatia de pão com peito de frango ou queijo",
+      "Água ou água de coco"
+     ]
+    },
+    {
+     "dia": "Corrida 3",
+     "tipo": "Longo leve",
+     "km": 5,
+     "descricao": "5 km em 6:50 a 7:20 por km (cerca de 35 min). É o seu longo da semana: o objetivo é terminar bem, sem forçar. Evite fazer perna pesada na musculação no dia anterior.",
+     "pre": [
+      "1 banana + 1 fatia de pão com mel ou geleia, de 30 a 45 min antes",
+      "200 a 300 ml de água"
+     ],
+     "pos": [
+      "Arroz, feijão e frango no almoço (em até 2 horas)",
+      "Uma fruta de sobremesa",
+      "Água ao longo do dia"
+     ]
+    }
+   ]
+  },
+  {
+   "titulo": "Semana 2 · Construção (15 km)",
+   "foco": "Primeiro treino com variação de ritmo e o longo sobe para 6 km.",
+   "dias": [
+    {
+     "dia": "Corrida 1",
+     "tipo": "Corrida leve",
+     "km": 4,
+     "descricao": "Ritmo confortável, de 6:45 a 7:15 por km (cerca de 28 a 30 min). Você deve conseguir conversar. Comece com 5 min de caminhada e termine com 5 min caminhando.",
+     "pre": [
+      "1 banana ou 1 maçã, de 10 a 30 min antes (como você já faz)",
+      "1 copo de água (200 a 300 ml) ao acordar"
+     ],
+     "pos": [
+      "Uma fruta + 1 barra de proteína em até 1 hora",
+      "Café da manhã completo: ovos com pão ou tapioca",
+      "Água ao longo da manhã"
+     ]
+    },
+    {
+     "dia": "Corrida 2",
+     "tipo": "Fartlek",
+     "km": 5,
+     "descricao": "1 km leve de aquecimento. Depois, 6 blocos de 1 min mais forte (por volta de 6:00 por km, seu ritmo de 5K) com 2 min leves entre eles. Complete os 5 km em ritmo leve.",
+     "pre": [
+      "1 banana + 1 fatia de pão com mel ou geleia, de 30 a 45 min antes",
+      "200 a 300 ml de água"
+     ],
+     "pos": [
+      "Iogurte com frutas e granola",
+      "1 fatia de pão com peito de frango ou queijo",
+      "Água ou água de coco"
+     ]
+    },
+    {
+     "dia": "Corrida 3",
+     "tipo": "Longo leve",
+     "km": 6,
+     "descricao": "6 km em 6:50 a 7:20 por km (cerca de 42 min). Ritmo de conversa o tempo todo.",
+     "pre": [
+      "1 banana + 1 fatia de pão com mel, ou 1 barra de cereal, de 30 a 45 min antes",
+      "300 ml de água ao acordar"
+     ],
+     "pos": [
+      "Arroz, feijão e frango no almoço (em até 2 horas)",
+      "Uma fruta de sobremesa",
+      "Água ao longo do dia"
+     ]
+    }
+   ]
+  },
+  {
+   "titulo": "Semana 3 · Ritmo (17 km)",
+   "foco": "Semana mais forte do bloco: um treino em ritmo moderado e o longo de 7 km.",
+   "dias": [
+    {
+     "dia": "Corrida 1",
+     "tipo": "Corrida leve",
+     "km": 5,
+     "descricao": "5 km em 6:45 a 7:15 por km (cerca de 35 min). Ritmo de conversa.",
+     "pre": [
+      "1 banana ou 1 maçã, de 10 a 30 min antes (como você já faz)",
+      "1 copo de água (200 a 300 ml) ao acordar"
+     ],
+     "pos": [
+      "Uma fruta + 1 barra de proteína em até 1 hora",
+      "Café da manhã completo: ovos com pão ou tapioca",
+      "Água ao longo da manhã"
+     ]
+    },
+    {
+     "dia": "Corrida 2",
+     "tipo": "Ritmo moderado",
+     "km": 5,
+     "descricao": "1 km leve de aquecimento, 3 km em ritmo moderado (6:20 a 6:30 por km, esforço de \"confortavelmente difícil\"), 1 km leve para desacelerar.",
+     "pre": [
+      "1 banana + 1 fatia de pão com mel ou geleia, de 30 a 45 min antes",
+      "200 a 300 ml de água"
+     ],
+     "pos": [
+      "Iogurte com frutas e granola",
+      "1 fatia de pão com peito de frango ou queijo",
+      "Água ou água de coco"
+     ]
+    },
+    {
+     "dia": "Corrida 3",
+     "tipo": "Longo leve",
+     "km": 7,
+     "descricao": "7 km em 6:50 a 7:20 por km (cerca de 50 min). Se precisar, leve água. Deixe a perna descansada no dia anterior.",
+     "pre": [
+      "1 banana + 1 fatia de pão com mel, ou 1 barra de cereal, de 30 a 45 min antes",
+      "300 ml de água ao acordar"
+     ],
+     "pos": [
+      "Arroz, feijão e frango no almoço (em até 2 horas)",
+      "Uma fruta de sobremesa",
+      "Água ao longo do dia"
+     ]
+    }
+   ]
+  },
+  {
+   "titulo": "Semana 4 · Recuperação e teste (13 km)",
+   "foco": "Semana mais leve para o corpo absorver o treino, fechando com um teste de 5 km.",
+   "dias": [
+    {
+     "dia": "Corrida 1",
+     "tipo": "Corrida leve",
+     "km": 4,
+     "descricao": "Ritmo confortável, de 6:45 a 7:15 por km (cerca de 28 a 30 min). Você deve conseguir conversar. Comece com 5 min de caminhada e termine com 5 min caminhando.",
+     "pre": [
+      "1 banana ou 1 maçã, de 10 a 30 min antes (como você já faz)",
+      "1 copo de água (200 a 300 ml) ao acordar"
+     ],
+     "pos": [
+      "Uma fruta + 1 barra de proteína em até 1 hora",
+      "Café da manhã completo: ovos com pão ou tapioca",
+      "Água ao longo da manhã"
+     ]
+    },
+    {
+     "dia": "Corrida 2",
+     "tipo": "Leve com acelerações",
+     "km": 4,
+     "descricao": "4 km leves (6:45 a 7:15 por km). Depois do 2º km, faça 4 acelerações de 20 s (por volta de 5:30 por km), com 1 min de trote entre elas. Servem para soltar a passada.",
+     "pre": [
+      "1 banana ou 1 maçã, de 10 a 30 min antes (como você já faz)",
+      "1 copo de água (200 a 300 ml) ao acordar"
+     ],
+     "pos": [
+      "Iogurte com frutas e granola",
+      "1 fatia de pão com peito de frango ou queijo",
+      "Água ou água de coco"
+     ]
+    },
+    {
+     "dia": "Corrida 3",
+     "tipo": "Teste de 5 km",
+     "km": 5,
+     "descricao": "Aqueça 10 min leve + 4 acelerações curtas. Depois corra 5 km no ritmo mais forte que consiga manter por igual até o fim (meta: abaixo de 30 min, sem largar rápido demais). Anote o tempo e o pace e traga na próxima etapa.",
+     "pre": [
+      "1 banana + 1 fatia de pão com mel ou geleia, de 30 a 45 min antes",
+      "200 a 300 ml de água"
+     ],
+     "pos": [
+      "Arroz, feijão e frango no almoço (em até 2 horas)",
+      "Uma fruta de sobremesa",
+      "Água ao longo do dia"
+     ]
+    }
+   ]
+  }
+ ],
+ "dicas": [
+  "Musculação e futevôlei também cansam as pernas. Evite perna pesada ou futevôlei no dia anterior ao longo e ao treino mais forte da semana. Distribua as 3 corridas com pelo menos 1 dia de intervalo entre elas, quando der.",
+  "O ritmo leve precisa ser leve: se não consegue conversar, desacelere. A maior parte do seu treino deve ser fácil.",
+  "Aqueça com 5 min de caminhada ou trote suave e termine com 5 min caminhando.",
+  "Na esteira, deixe 1% de inclinação para se aproximar do esforço da rua.",
+  "Se sentir dor que piora ao correr (canela, joelho, tendão), reduza para 2 corridas na semana. Se a dor persistir, procure um médico. Se nunca fez uma avaliação médica, vale fazer antes de aumentar o volume.",
+  "Alimentação: como você faz musculação e corre, mantenha proteína em todas as refeições (referência geral de 1,6 a 2 g por kg ao dia, cerca de 125 a 155 g) e não corte carboidrato nos dias de corrida.",
+  "Durma de 7 a 9 horas e beba água ao longo do dia. Urina clara costuma indicar boa hidratação.",
+  "Estimativa: com um 5K de 30 min, uma meia maratona entre 2h15 e 2h25 é uma meta realista. Depois do teste da semana 4 eu ajusto.",
+  "Na semana 4, volte aqui com o resultado do teste e com como foi cada semana para eu gerar o próximo bloco."
+ ]
+}

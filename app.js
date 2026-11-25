@@ -1,4 +1,3 @@
-
 const $ = (s) => document.querySelector(s);
 const P = {
 home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
@@ -168,9 +167,10 @@ const V = {
   },
   treino() {
     const p = S.perfil, chips = (k, o) => '<div class="chips">'+o.map((x) => '<button class="chip '+(String(p[k]) === String(x) ? 'on' : '')+'" onclick="setP(\''+k+'\',\''+x+'\')">'+x+'</button>').join('')+'</div>';
-    const pl = S.treino || S.plano;
+    const T0 = S.treino, w = T0 ? T0.semanas[semAtual()] : (S.plano ? { dias: S.plano.semana, resumo: S.plano.resumo } : null);
     return '<h1>Meu treino</h1>' + (S.treino ? '<p class="sub">Plano personalizado'+(S.treino.gerado ? ' · gerado em '+S.treino.gerado : '')+'</p>' : '<p class="sub">Ainda não há plano personalizado. Peça ao Claude para gerar o seu e salve em treino.json. Enquanto isso, dá para gerar um plano básico.</p>') +
-      (pl ? planHtml(pl) : '') +
+      (T0 ? semChips() : '') + (w && w.titulo ? '<h2>'+w.titulo+'</h2>' : '') + (w ? planHtml(w) : '') +
+      (T0 && T0.dicas && T0.dicas.length ? '<div class="card"><h2>Dicas</h2>'+T0.dicas.map((x) => '<div class="mut" style="margin-bottom:8px;font-size:14px;line-height:1.5">• '+x+'</div>').join('')+'</div>' : '') +
       '<div class="card"><h2>Seu perfil</h2><div class="lbl">NÍVEL</div>'+chips('nivel',['Iniciante','Intermediário','Avançado'])+'<div class="lbl">OBJETIVO</div>'+chips('objetivo',['Saúde','5K','10K','21K'])+'<div class="lbl">DIAS POR SEMANA</div>'+chips('dias',[2,3,4,5]) +
       (S.treino ? '' : '<button class="btn" onclick="gerar()">'+ic('star',18)+'Gerar plano básico</button>')+'<p class="note">O nível ajusta as metas dos desafios semanais.</p></div>';
   },
@@ -178,7 +178,7 @@ const V = {
     const bl = (t, a) => '<div class="card"><h2>'+t+'</h2>'+a.map((x) => '<div style="margin-bottom:12px"><b style="font-size:14px">'+x[0]+'</b><div class="mut" style="font-size:13px">'+x[1]+'</div></div>').join('')+'</div>';
     const li = (t, a) => '<div class="lbl" style="margin-top:12px">'+t+'</div>'+(a || []).map((x) => '<div style="margin-bottom:4px;font-size:14px">• '+x+'</div>').join('');
     return '<button class="back" onclick="go(\'home\')">'+ic('back',20)+'Início</button><h1>Alimentação</h1>' +
-      (S.treino ? S.treino.semana.map((x) => '<div class="card"><h2>'+x.dia+' · '+x.tipo+'</h2>'+li('ANTES', x.pre)+li('DEPOIS', x.pos)+'</div>').join('') : bl('Pré-corrida',NUTRI.pre)+bl('Pós-corrida',NUTRI.pos));
+      (S.treino ? semChips() + S.treino.semanas[semAtual()].dias.map((x) => '<div class="card"><h2>'+x.dia+' · '+x.tipo+'</h2>'+li('ANTES', x.pre)+li('DEPOIS', x.pos)+'</div>').join('') : bl('Pré-corrida',NUTRI.pre)+bl('Pós-corrida',NUTRI.pos));
   },
   conta() {
     const bk = '<button class="back" onclick="go(\'home\')">'+ic('back',20)+'Início</button><h1>Conta</h1>';
@@ -215,11 +215,27 @@ function gerar() { S.plano = gerarPlano(S.perfil); save(); render(); }
 // ---------- utilidades ----------
 const hav = (a, b) => { const R = 6371, rad = (x) => x*Math.PI/180, dLa = rad(b[0]-a[0]), dLo = rad(b[1]-a[1]); const h = Math.sin(dLa/2)**2 + Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); };
 const decim = (a, max = 1500) => { if (a.length <= max) return a; const st = a.length/max, o = []; for (let i = 0; i < max; i++) o.push(a[Math.floor(i*st)]); o.push(a[a.length-1]); return o; };
-function planHtml(pl) {
-  return (pl.resumo ? '<div class="card"><div style="line-height:1.6;font-size:14px">'+pl.resumo+'</div></div>' : '') +
-    pl.semana.map((x, i) => '<div class="card"><div class="flex" style="margin-bottom:8px"><div class="ibox" style="font-weight:800">'+(i+1)+'</div><div><div class="lbl" style="margin:0">'+String(x.dia || 'Dia '+(i+1)).toUpperCase()+'</div><div class="big">'+x.tipo+' · '+x.km+' km</div></div></div><div class="mut" style="font-size:14px;line-height:1.5">'+x.descricao+'</div></div>').join('') +
-    (pl.dicas && pl.dicas.length ? '<div class="card"><h2>Dicas</h2>'+pl.dicas.map((d) => '<div class="mut" style="margin-bottom:6px;font-size:14px;line-height:1.5">• '+d+'</div>').join('')+'</div>' : '');
+function planHtml(w) {
+  return (w.foco ? '<div class="card"><div class="lbl">FOCO DA SEMANA</div><div style="line-height:1.6;font-size:14px">'+w.foco+'</div></div>' : '') +
+    (w.resumo ? '<div class="card"><div style="line-height:1.6;font-size:14px">'+w.resumo+'</div></div>' : '') +
+    w.dias.map((x, i) => '<div class="card"><div class="flex" style="margin-bottom:8px"><div class="ibox" style="font-weight:800">'+(i+1)+'</div><div><div class="lbl" style="margin:0">'+String(x.dia || 'Dia '+(i+1)).toUpperCase()+'</div><div class="big">'+x.tipo+' · '+x.km+' km</div></div></div><div class="mut" style="font-size:14px;line-height:1.5">'+x.descricao+'</div></div>').join('');
 }
+// plano com várias semanas (treino.json: "semanas") ou uma só ("semana", formato antigo)
+function normTreino(j) {
+  if (!j) return null;
+  if (j.semanas) return j;
+  if (j.semana) return { ...j, semanas: [{ titulo: 'Semana', dias: j.semana, resumo: j.resumo }] };
+  return null;
+}
+function semAtual() {
+  const t = S.treino; if (!t) return 0;
+  if (S.sem != null) return S.sem;
+  if (!t.inicio) return 0;
+  const n = Math.floor((Date.now() - Date.parse(t.inicio + 'T00:00:00')) / (7*86400000));
+  return Math.max(0, Math.min(t.semanas.length-1, n));
+}
+const semChips = () => S.treino.semanas.length > 1 ? '<div class="chips">'+S.treino.semanas.map((w, i) => '<button class="chip '+(semAtual() === i ? 'on' : '')+'" onclick="setSem('+i+')">Semana '+(i+1)+'</button>').join('')+'</div>' : '';
+function setSem(i) { S.sem = i; render(); }
 
 // ---------- mapa (Leaflet + OpenStreetMap) ----------
 let map = null, poly = null, dot = null;
@@ -362,6 +378,6 @@ async function authDo(mode) {
 }
 
 // ---------- plano personalizado + offline ----------
-fetch('treino.json', { cache: 'no-cache' }).then((r) => r.json()).then((j) => { S.treino = j && j.semana ? j : null; render(); }).catch(() => {});
+fetch('treino.json', { cache: 'no-cache' }).then((r) => r.json()).then((j) => { S.treino = normTreino(j); render(); }).catch(() => {});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 render();
