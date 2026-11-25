@@ -241,11 +241,11 @@ function setSem(i) { S.sem = i; render(); }
 let map = null, poly = null, dot = null, accuracyRing = null, tileFallbackUsed = false;
 function mapTiles(m) {
   tileFallbackUsed = false;
-  const primary = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© OpenStreetMap © CARTO' }).addTo(m);
+  const primary = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(m);
   primary.on('tileerror', () => {
     if (tileFallbackUsed || !map) return;
     tileFallbackUsed = true; map.removeLayer(primary);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
+    L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(m);
   });
 }
 function mapInit(id) {
