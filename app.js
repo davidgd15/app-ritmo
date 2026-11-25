@@ -238,19 +238,27 @@ const semChips = () => S.treino.semanas.length > 1 ? '<div class="chips">'+S.tre
 function setSem(i) { S.sem = i; render(); }
 
 // ---------- mapa (Leaflet + OpenStreetMap) ----------
-let map = null, poly = null, dot = null;
+let map = null, poly = null, dot = null, accuracyRing = null, tileFallbackUsed = false;
+function mapTiles(m) {
+  tileFallbackUsed = false;
+  const primary = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© OpenStreetMap © CARTO' }).addTo(m);
+  primary.on('tileerror', () => {
+    if (tileFallbackUsed || !map) return;
+    tileFallbackUsed = true; map.removeLayer(primary);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
+  });
+}
 function mapInit(id) {
   if (!window.L || !$('#'+id)) return null;
   const m = L.map(id, { zoomControl: false }).setView([-14.2, -51.9], 4);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© OpenStreetMap © CARTO' }).addTo(m);
-  return m;
+  mapTiles(m); setTimeout(() => m.invalidateSize(), 100); return m;
 }
 function afterRender() {
   try { if (map) map.remove(); } catch (e) {}
-  map = poly = dot = null;
+  map = poly = dot = accuracyRing = null;
   if (S.tab === 'correr' && G) {
     map = mapInit('map');
-    if (map) { poly = L.polyline(G.pts, { color: '#5B94FF', weight: 5 }).addTo(map); if (G.pts.length) { gMap(true); } }
+    if (map) { poly = L.polyline(G.pts, { color: '#5B94FF', weight: 5 }).addTo(map); if (G.pts.length) gMap(true); if (G.lastFix) gShowFix(G.lastFix, G.lastAccuracy, true); }
   } else if (S.tab === 'corridas' && S.open) {
     const r = S.runs.find((x) => x.id === S.open);
     if (r && r.route && r.route.length > 1) {
@@ -269,11 +277,16 @@ function toggleRun(id) { S.open = S.open === id ? null : id; render(); }
 // ---------- corrida ao vivo (GPS) ----------
 let G = null;
 const gEl = () => Math.max(0, Math.floor((Date.now() - G.t0 - G.pausedMs - (G.st === 'pause' ? Date.now() - G.pAt : 0)) / 1000));
+function gShowFix(q, accuracy, center) {
+  if (!map || !q) return;
+  if (!dot) dot = L.circleMarker(q, { radius: 8, color: '#fff', fillColor: '#5B94FF', fillOpacity: 1, weight: 3 }).addTo(map); else dot.setLatLng(q);
+  if (accuracyRing) accuracyRing.setLatLng(q).setRadius(accuracy || 0);
+  else accuracyRing = L.circle(q, { radius: accuracy || 0, color: '#8CC8FF', weight: 1, fillColor: '#5B94FF', fillOpacity: .12 }).addTo(map);
+  if (center) map.setView(q, 17); else map.panTo(q);
+}
 function gMap(first) {
   if (!map || !G.pts.length) return;
-  const last = G.pts[G.pts.length-1];
-  poly.setLatLngs(G.pts);
-  if (!dot) dot = L.circleMarker(last, { radius: 8, color: '#fff', fillColor: '#5B94FF', fillOpacity: 1, weight: 3 }).addTo(map); else dot.setLatLng(last);
+  const last = G.pts[G.pts.length-1]; poly.setLatLngs(G.pts);
   if (first || G.pts.length === 1) map.setView(last, 17); else map.panTo(last);
 }
 function gUi() {
@@ -289,26 +302,36 @@ function gWatch() {
 }
 function gPos(p) {
   if (!G || G.st !== 'run') return;
-  const c = p.coords;
-  if (c.accuracy > 30) { G.fix = 'Sinal fraco (' + Math.round(c.accuracy) + ' m)'; return gUi(); }
-  G.fix = 'GPS ok';
-  const q = [+c.latitude.toFixed(5), +c.longitude.toFixed(5)];
-  if (G.last) { const d = hav(G.last, q); if (d < 0.003) return gUi(); G.dist += d; }
-  G.last = q; G.pts.push(q); gMap(); gUi(); gSaveLive();
+  const c = p.coords, accuracy = Number(c.accuracy) || 999, q = [+c.latitude, +c.longitude];
+  if (q.some((v) => !Number.isFinite(v))) return;
+  G.lastFix = q; G.lastAccuracy = accuracy; gShowFix(q, accuracy, !G.centered); G.centered = true;
+  if (accuracy > 25) { G.goodFixes = 0; G.fix = 'Sinal fraco (' + Math.round(accuracy) + ' m). Vá para um local aberto.'; return gUi(); }
+  G.goodFixes = (G.goodFixes || 0) + 1;
+  if (G.goodFixes < 3) { G.fix = 'Calibrando GPS (' + G.goodFixes + '/3 leituras boas)...'; return gUi(); }
+  G.fix = 'GPS pronto · precisão ' + Math.round(accuracy) + ' m';
+  const prev = G.last;
+  if (prev) {
+    const d = hav(prev, q), elapsed = Math.max(.5, (p.timestamp - (G.lastAt || p.timestamp - 1000)) / 1000);
+    if (d / elapsed > 9) { G.last = q; G.lastAt = p.timestamp; G.fix = 'Ajustando salto do GPS...'; return gUi(); }
+    const noise = Math.max(.003, Math.min(.008, ((accuracy + (G.lastAccuracy || accuracy)) / 2) / 1000));
+    if (d < noise) { G.lastAt = p.timestamp; return gUi(); }
+    G.dist += d;
+  }
+  G.last = q; G.lastAt = p.timestamp; G.pts.push([+q[0].toFixed(5), +q[1].toFixed(5)]); gMap(!prev); gUi(); gSaveLive();
 }
 function gStart() {
   if (!navigator.geolocation) { S.err = 'Este navegador não tem GPS.'; return render(); }
-  S.err = ''; G = { st: 'run', t0: Date.now(), pausedMs: 0, pAt: 0, pts: [], dist: 0, last: null, fix: 'Procurando sinal de GPS...' };
+  S.err = ''; G = { st: 'run', t0: Date.now(), pausedMs: 0, pAt: 0, pts: [], dist: 0, last: null, lastAt: 0, goodFixes: 0, centered: false, fix: 'Procurando sinal de GPS...' };
   gWatch(); gLock(); gSaveLive(); render();
 }
 function gResume() {
-  try { const o = JSON.parse(localStorage.getItem('r2_live')); G = { ...o, st: 'run', last: o.pts[o.pts.length-1] || null, fix: 'Retomando...' }; if (o.st === 'pause') { G.pausedMs += Date.now() - o.pAt; } gWatch(); gLock(); } catch (e) { G = null; }
+  try { const o = JSON.parse(localStorage.getItem('r2_live')); G = { ...o, st: 'run', last: null, lastAt: 0, goodFixes: 0, centered: false, lastFix: null, lastAccuracy: 0, fix: 'Recalibrando GPS...' }; if (o.st === 'pause') { G.pausedMs += Date.now() - o.pAt; } gWatch(); gLock(); } catch (e) { G = null; }
   render();
 }
 function gDiscard() { try { localStorage.removeItem('r2_live'); } catch (e) {} render(); }
 function gPause() {
   if (G.st === 'run') { G.st = 'pause'; G.pAt = Date.now(); }
-  else { G.pausedMs += Date.now() - G.pAt; G.st = 'run'; G.last = null; }
+  else { G.pausedMs += Date.now() - G.pAt; G.st = 'run'; G.last = null; G.lastAt = 0; G.goodFixes = 0; G.fix = 'Recalibrando GPS...'; }
   gSaveLive(); render();
 }
 function gFinish() {

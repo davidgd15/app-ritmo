@@ -15,15 +15,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" onerror="this.onerror=null;this.href=&quot;https://unpkg.com/leaflet@1.9.4/dist/leaflet.css&quot;">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="bg"></div>
 <div id="app"></div>
 <nav class="tabbar" id="tabs"></nav>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="app.js"></script>
+<script>
+function startRitmo(){var a=document.createElement("script");a.src="app.js";document.body.appendChild(a)}
+var leaflet=document.createElement("script");leaflet.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";leaflet.onload=startRitmo;leaflet.onerror=function(){var fallback=document.createElement("script");fallback.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";fallback.onload=startRitmo;fallback.onerror=startRitmo;document.head.appendChild(fallback)};document.head.appendChild(leaflet);
+</script>
 <script type="module" src="firebase.js"></script>
 </body>
 </html>
