@@ -31,12 +31,12 @@ const NUTRI = {
   pos: [['Ovos + pão ou tapioca','Proteína + carbo para recuperar.'],['Iogurte com frutas e granola','Prático e rápido.'],['Arroz, feijão e frango','Refeição completa em até 2h.'],['Água ou água de coco','Repor líquidos e minerais.']]
 };
 Object.assign(P, { more:'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>', edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>' });
-let S = { tab:'home', synced:[], treino:null, cloud:'', runs:[], perfil:{nivel:'Iniciante',objetivo:'Saúde',dias:3}, plano:null, claimed:{}, open:null, err:'', chartRange:7, menuRun:null, editRun:null, runEditErr:'', deletedRuns:[], dirtyRuns:[], openWeeks:null, openSession:null, authMode:'in', authBusy:false };
+let S = { tab:'home', synced:[], treino:null, cloud:'', runs:[], perfil:{nivel:'Iniciante',objetivo:'Saúde',dias:3}, plano:null, claimed:{}, open:null, err:'', chartRange:7, menuRun:null, editRun:null, runEditErr:'', deletedRuns:[], dirtyRuns:[], openWeeks:null, openSession:null, completed:{}, runLinks:{}, pendingRunLink:null, runLinkErr:'', authMode:'in', authBusy:false };
 try {
   const g = (k) => JSON.parse(localStorage.getItem(k) || 'null');
-  S.runs = g('r2_runs') || []; S.perfil = g('r2_perfil') || S.perfil; S.plano = g('r2_plano'); S.claimed = g('r2_claimed') || {}; S.synced = g('r2_synced') || []; S.deletedRuns = g('r2_deleted_runs') || []; S.dirtyRuns = g('r2_dirty_runs') || [];
+  S.runs = g('r2_runs') || []; S.perfil = g('r2_perfil') || S.perfil; S.plano = g('r2_plano'); S.claimed = g('r2_claimed') || {}; S.synced = g('r2_synced') || []; S.deletedRuns = g('r2_deleted_runs') || []; S.dirtyRuns = g('r2_dirty_runs') || []; S.completed = g('r2_completed') || {}; S.runLinks = g('r2_run_links') || {}; S.pendingRunLink = g('r2_pending_run_link');
 } catch (e) {}
-const saveLocal = () => { try { localStorage.setItem('r2_runs', JSON.stringify(S.runs)); localStorage.setItem('r2_perfil', JSON.stringify(S.perfil)); localStorage.setItem('r2_plano', JSON.stringify(S.plano)); localStorage.setItem('r2_claimed', JSON.stringify(S.claimed)); localStorage.setItem('r2_synced', JSON.stringify(S.synced)); localStorage.setItem('r2_deleted_runs', JSON.stringify(S.deletedRuns)); localStorage.setItem('r2_dirty_runs', JSON.stringify(S.dirtyRuns)); } catch (e) {} };
+const saveLocal = () => { try { localStorage.setItem('r2_runs', JSON.stringify(S.runs)); localStorage.setItem('r2_perfil', JSON.stringify(S.perfil)); localStorage.setItem('r2_plano', JSON.stringify(S.plano)); localStorage.setItem('r2_claimed', JSON.stringify(S.claimed)); localStorage.setItem('r2_synced', JSON.stringify(S.synced)); localStorage.setItem('r2_deleted_runs', JSON.stringify(S.deletedRuns)); localStorage.setItem('r2_dirty_runs', JSON.stringify(S.dirtyRuns)); localStorage.setItem('r2_completed', JSON.stringify(S.completed)); localStorage.setItem('r2_run_links', JSON.stringify(S.runLinks)); localStorage.setItem('r2_pending_run_link', JSON.stringify(S.pendingRunLink)); } catch (e) {} };
 const save = () => { saveLocal(); cloudSave(); };
 
 const toSecs = (s) => { if (!s) return null; const p = String(s).trim().split(':').map(Number); if (p.some(isNaN)) return null; if (p.length === 1) return p[0]*60; if (p.length === 2) return p[0]*60+p[1]; return p[0]*3600+p[1]*60+p[2]; };
@@ -165,15 +165,13 @@ const V = {
     return '<main class="auth-wrap"><div class="brand auth-brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div></div><div class="card auth-card"><h1>'+(creating ? 'Criar conta' : 'Bem-vindo')+'</h1><p class="sub">'+(creating ? 'Crie sua conta para salvar suas corridas e acompanhar sua evolução.' : 'Entre para acessar seus treinos e suas corridas.')+'</p><div class="lbl">E-MAIL</div><input id="ce" type="email" autocomplete="email" placeholder="voce@email.com"><div class="lbl">SENHA</div><input id="cs" type="password" autocomplete="'+(creating ? 'new-password' : 'current-password')+'" placeholder="Mínimo de 6 caracteres">'+(S.err ? '<div class="err">'+S.err+'</div>' : '')+'<button class="btn" style="margin-top:14px" onclick="authDo(\''+(creating ? 'up' : 'in')+'\')" '+(S.authBusy ? 'disabled' : '')+'>'+(S.authBusy ? 'Aguarde...' : (creating ? 'Criar conta' : 'Entrar'))+'</button><button class="auth-switch" onclick="authMode(\''+(creating ? 'in' : 'up')+'\')">'+(creating ? 'Já tem conta? Entrar' : 'Não tem conta? Criar conta')+'</button></div><p class="auth-foot">Seus dados de corrida ficam associados à sua conta.</p></main>';
   },
   home() {
-    const s = calcStats(S.runs), xp = xpTotal(), lvl = Math.floor(xp/100)+1, ult = S.runs[S.runs.length-1];
-    return '<div class="brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div><button class="back" style="margin:0 0 0 auto" onclick="go(\'conta\')" aria-label="Conta">'+ic('user',24)+'</button></div>' +
-      '<div class="hero"><div class="l">SEU NÍVEL</div><div class="flex" style="justify-content:space-between;align-items:flex-end"><div class="n">'+lvl+'</div><div style="font-weight:700;margin-bottom:10px">'+xp+' XP</div></div><div class="hbar"><i style="width:'+(xp%100)+'%"></i></div><div style="font-size:12px;margin-top:8px;color:rgba(255,255,255,.75)">Faltam '+(100-xp%100)+' XP para o nível '+(lvl+1)+'</div></div>' +
-      '<div class="row">'+tile('pin', s.km.toFixed(1)+' km','TOTAL')+tile('trend', s.n,'CORRIDAS')+tile('zap', s.atual, s.atual === 1 ? 'DIA SEGUIDO' : 'DIAS SEGUIDOS')+'</div>' +
-      (ult ? '<div class="card"><div class="lbl">ÚLTIMA CORRIDA</div><div class="big">'+ult.dist+' km · '+fmtPace(ult.secs/ult.dist)+'</div><div class="mut" style="font-size:13px;margin-top:2px">'+ult.l+' · '+fmtTime(ult.secs)+'</div></div>' : '') +
-      '<button class="btn" onclick="go(\'correr\')">'+ic('play',18)+'Iniciar corrida</button>' +
+    const s=calcStats(S.runs), xp=xpTotal(), lvl=Math.floor(xp/100)+1, ult=S.runs[S.runs.length-1];
+    return '<div class="brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div><button class="back" style="margin:0 0 0 auto" onclick="go(\'conta\')" aria-label="Conta">'+ic('user',24)+'</button></div>'+
+      '<div class="hero"><div class="l">SEU NÍVEL</div><div class="flex" style="justify-content:space-between;align-items:flex-end"><div class="n">'+lvl+'</div><div style="font-weight:700;margin-bottom:10px">'+xp+' XP</div></div><div class="hbar"><i style="width:'+(xp%100)+'%"></i></div><div style="font-size:12px;margin-top:8px;color:rgba(255,255,255,.75)">Faltam '+(100-xp%100)+' XP para o nível '+(lvl+1)+'</div></div>'+
+      homeWorkoutCard()+'<div class="row">'+tile('pin',s.km.toFixed(1)+' km','TOTAL')+tile('trend',s.n,'CORRIDAS')+tile('zap',s.atual,s.atual===1?'DIA SEGUIDO':'DIAS SEGUIDOS')+'</div>'+
+      (ult ? '<div class="card"><div class="lbl">ÚLTIMA CORRIDA</div><div class="big">'+ult.dist+' km · '+fmtPace(ult.secs/ult.dist)+'</div><div class="mut" style="font-size:13px;margin-top:2px">'+ult.l+' · '+fmtTime(ult.secs)+'</div></div>' : '')+
       '<div class="row" style="margin-top:14px"><button class="card flex" style="margin:0;color:inherit;font:700 13px Sora,sans-serif;cursor:pointer;text-align:left" onclick="go(\'calc\')"><span class="ibox">'+ic('calc',18)+'</span>Calculadora</button><button class="card flex" style="margin:0;color:inherit;font:700 13px Sora,sans-serif;cursor:pointer;text-align:left" onclick="go(\'comida\')"><span class="ibox">'+ic('cup',18)+'</span>Alimentação</button></div>';
-  },
-  corridas() {
+  },  corridas() {
     const today = new Date(); today.setHours(0,0,0,0);
     const range = S.chartRange || 7;
     const filtered = range === 'all' ? S.runs : range === 7 ? S.runs.slice(-7) : S.runs.filter((r) => r.id >= today.getTime() - range*86400000);
@@ -186,7 +184,7 @@ const V = {
     return '<h1>Corridas</h1><div class="card">'+field('DISTÂNCIA (KM)','cd','ex: 5','decimal')+field('TEMPO (MM:SS OU H:MM:SS)','ct','ex: 28:30')+field('DATA (DD/MM/AAAA, VAZIO = HOJE)','cdt','ex: 22/11/2026')+
       '<button class="btn" onclick="addRun()">'+ic('plus',18)+'Salvar corrida</button>'+
       '<label class="btn alt" style="margin-top:12px">'+ic('upload',18)+'Importar arquivo GPX<input type="file" accept=".gpx,application/gpx+xml" style="display:none" onchange="importGpx(this)"></label>'+(S.err ? '<div class="err">'+S.err+'</div>' : '')+'</div>'+
-      '<section class="progress-section"><h2>Seu progresso</h2><p class="sub">Veja sua distância e seu ritmo ao longo do tempo.</p><div class="chips chart-filters">'+ranges.map(([v,l]) => '<button class="chip '+(String(range)===String(v)?'on':'')+'" onclick="setChartRange(\''+v+'\')">'+l+'</button>').join('')+'</div>'+
+      pendingRunLinkCard()+'<section class="progress-section"><h2>Seu progresso</h2><p class="sub">Veja sua distância e seu ritmo ao longo do tempo.</p><div class="chips chart-filters">'+ranges.map(([v,l]) => '<button class="chip '+(String(range)===String(v)?'on':'')+'" onclick="setChartRange(\''+v+'\')">'+l+'</button>').join('')+'</div>'+
       (filtered.length ? '<p class="chart-period">'+period+' · '+filtered.length+' '+(filtered.length===1?'corrida':'corridas')+'</p><div class="chart-summary">'+metric('DISTÂNCIA TOTAL',totalKm.toFixed(1)+' km')+metric('MÉDIA POR CORRIDA',avgKm.toFixed(1)+' km')+metric('PACE MÉDIO',fmtPace(avgPace))+metric('MELHOR PACE',fmtPace(bestPace))+'</div>'+
       '<div class="card chart-card"><h3>Distância por corrida</h3><p class="chart-help">Cada barra representa uma corrida. Barra mais alta = mais quilômetros.</p>'+chartSvg(data,'distance')+'</div>'+
       '<div class="card chart-card"><h3>Ritmo (pace)</h3><p class="chart-help">Pace é o tempo por quilômetro. Ponto mais baixo = mais rápido.</p>'+chartSvg(data,'pace')+'</div>'+
@@ -221,15 +219,13 @@ const V = {
       field('DISTÂNCIA (KM)','kd','ex: 5','decimal')+field('TEMPO (MM:SS OU H:MM:SS)','kt','ex: 28:30')+field('PACE (MM:SS POR KM)','kp','ex: 5:42')+'<button class="btn alt" onclick="limpar()">'+ic('refresh',18)+'Limpar</button></div><div id="res"></div>';
   },
   treino() {
-    const p = S.perfil, T0 = S.treino;
-    const basic = !T0 && S.plano ? [{ titulo:'Plano básico', foco:S.plano.resumo, dias:S.plano.semana.map((x,i) => ({ dia:'Treino '+(i+1), tipo:x.n, km:x.km, descricao:x.d })) }] : [];
-    const weeks = T0 ? T0.semanas : basic;
-    const chips = (k,o) => '<div class="chips">'+o.map((x) => '<button class="chip '+(String(p[k])===String(x)?'on':'')+'" onclick="setP(\''+k+'\',\''+x+'\')">'+x+'</button>').join('')+'</div>';
-    return '<h1>Meu treino</h1>'+(T0 ? '<p class="sub">Plano personalizado'+(T0.gerado ? ' · gerado em '+T0.gerado : '')+'</p>' : '<p class="sub">'+(S.plano ? 'Seu plano básico, organizado por semana.' : 'Ainda não há plano personalizado. Enquanto isso, você pode gerar um plano básico.')+'</p>')+
-      (weeks.length ? weeks.map((w,i) => weekCard(w,i,T0 && T0.inicio)).join('') : '')+
-      (T0 && T0.dicas && T0.dicas.length ? '<div class="card"><h2>Dicas</h2>'+T0.dicas.map((x) => '<div class="mut" style="margin-bottom:8px;font-size:14px;line-height:1.5">• '+x+'</div>').join('')+'</div>' : '')+
+    const p=S.perfil, T0=S.treino, weeks=getPlanWeeks();
+    const chips=(k,o)=>'<div class="chips">'+o.map((x)=>'<button class="chip '+(String(p[k])===String(x)?'on':'')+'" onclick="setP(\''+k+'\',\''+x+'\')">'+x+'</button>').join('')+'</div>';
+    return '<h1>Meu treino</h1>'+(T0?'<p class="sub">Plano personalizado'+(T0.gerado?' · gerado em '+T0.gerado:'')+'</p>':'<p class="sub">'+(S.plano?'Seu plano básico, organizado por semana.':'Ainda não há plano personalizado. Enquanto isso, você pode gerar um plano básico.')+'</p>')+
+      (weeks.length?weeks.map((w,i)=>weekCard(w,i,T0&&T0.inicio)).join(''):'')+
+      (T0&&T0.dicas&&T0.dicas.length?'<div class="card"><h2>Dicas</h2>'+T0.dicas.map((x)=>'<div class="mut" style="margin-bottom:8px;font-size:14px;line-height:1.5">• '+x+'</div>').join('')+'</div>':'')+
       '<div class="card"><h2>Seu perfil</h2><div class="lbl">NÍVEL</div>'+chips('nivel',['Iniciante','Intermediário','Avançado'])+'<div class="lbl">OBJETIVO</div>'+chips('objetivo',['Saúde','5K','10K','21K'])+'<div class="lbl">DIAS POR SEMANA</div>'+chips('dias',[2,3,4,5])+
-      (T0 || S.plano ? '' : '<button class="btn" onclick="gerar()">'+ic('star',18)+'Gerar plano básico</button>')+'<p class="note">O nível ajusta as metas dos desafios semanais.</p></div>';
+      (T0||S.plano?'':'<button class="btn" onclick="gerar()">'+ic('star',18)+'Gerar plano básico</button>')+'<p class="note">O nível ajusta as metas dos desafios semanais.</p></div>';
   },  comida() {
     const bl = (t, a) => '<div class="card"><h2>'+t+'</h2>'+a.map((x) => '<div style="margin-bottom:12px"><b style="font-size:14px">'+x[0]+'</b><div class="mut" style="font-size:13px">'+x[1]+'</div></div>').join('')+'</div>';
     const li = (t, a) => '<div class="lbl" style="margin-top:12px">'+t+'</div>'+(a || []).map((x) => '<div style="margin-bottom:4px;font-size:14px">• '+x+'</div>').join('');
@@ -288,7 +284,7 @@ function saveRunEdit(id) {
 }
 function deleteRun(id) {
   const r = S.runs.find((x) => x.id === id); if (!r || !confirm('Apagar esta corrida do histórico?')) return;
-  S.runs = S.runs.filter((x) => x.id !== id); if (S.synced.includes(id)) S.deletedRuns = [...new Set([...S.deletedRuns,id])]; if (S.open === id) S.open = null; S.menuRun = null; S.editRun = null; save(); render();
+  S.runs = S.runs.filter((x) => x.id !== id); delete S.runLinks[String(id)]; if (S.synced.includes(id)) S.deletedRuns = [...new Set([...S.deletedRuns,id])]; if (S.open === id) S.open = null; S.menuRun = null; S.editRun = null; save(); render();
 }
 function resgatar(i) { const d = desafios()[i]; S.claimed[d.key] = d.xp; save(); render(); }
 function setP(k, v) { S.perfil[k] = k === 'dias' ? Number(v) : v; save(); render(); }
@@ -316,7 +312,49 @@ function semAtual() {
   const n = Math.floor((Date.now() - Date.parse(t.inicio + 'T00:00:00')) / (7*86400000));
   return Math.max(0, Math.min(t.semanas.length-1, n));
 }
-function weekDateLabel(start,index) {
+function getPlanWeeks() {
+  if (S.treino && Array.isArray(S.treino.semanas)) return S.treino.semanas;
+  if (!S.plano) return [];
+  const days=Array.isArray(S.plano) ? S.plano : (Array.isArray(S.plano.semana) ? S.plano.semana : []);
+  return days.length ? [{ titulo:'Plano básico', foco:Array.isArray(S.plano) ? '' : S.plano.resumo, dias:days.map((x,i)=>({dia:x.dia||'Treino '+(i+1),tipo:x.tipo||x.n||'Corrida',km:x.km,descricao:x.descricao||x.d,pre:x.pre,pos:x.pos})) }] : [];
+}
+function planIdentity() {
+  if (S.treino) return 'custom:'+String(S.treino.inicio||'')+':'+String(S.treino.gerado||'')+':'+String(S.treino.resumo||'');
+  return S.plano ? 'basic:'+JSON.stringify(S.plano) : 'none';
+}
+function sessionKey(weekIndex,sessionIndex) {
+  const w=getPlanWeeks()[weekIndex], d=w&&Array.isArray(w.dias)?w.dias[sessionIndex]:null;
+  if(!w||!d) return '';
+  return [planIdentity(),weekIndex,w.titulo||'',sessionIndex,d.dia||'',d.tipo||d.n||'',d.km||''].join('|');
+}
+function getPlanSessions() {
+  return getPlanWeeks().flatMap((w,wi)=>(Array.isArray(w.dias)?w.dias:[]).map((d,si)=>({key:sessionKey(wi,si),weekIndex:wi,sessionIndex:si,weekTitle:w.titulo||('Semana '+(wi+1)),dia:d.dia||('Treino '+(si+1)),type:d.tipo||d.n||'Treino',km:Number(d.km)||0})));
+}
+function toggleSessionComplete(weekIndex,sessionIndex) {
+  const key=sessionKey(weekIndex,sessionIndex); if(!key) return;
+  S.completed[key]=!S.completed[key]; save(); render();
+}
+function homeWorkoutCard() {
+  const weeks=getPlanWeeks();
+  if(!weeks.length) return '<div class="home-next"><div class="home-next-label">SEU PLANO</div><p>Monte um plano para ver seu próximo treino aqui.</p><button class="btn alt" onclick="go(\'treino\')">Ver meu treino</button></div>';
+  const sessions=getPlanSessions(), next=sessions.find((x)=>!S.completed[x.key]);
+  if(!next) return '<div class="home-next home-next-done"><div class="home-next-label">PLANO</div><b>Todos os treinos estão marcados como concluídos.</b><button class="btn alt" onclick="go(\'treino\')">Rever meu plano</button></div>';
+  const weekSessions=sessions.filter((x)=>x.weekIndex===next.weekIndex), done=weekSessions.filter((x)=>S.completed[x.key]).length;
+  return '<div class="home-next"><div class="home-next-top"><span class="home-next-label">PRÓXIMO TREINO</span><span class="home-next-week">Semana '+(next.weekIndex+1)+'</span></div><h2>'+next.type+'</h2><p>'+next.dia+(next.km?' · '+String(next.km).replace('.',',')+' km':'')+'</p><div class="home-next-progress"><span>'+done+' de '+weekSessions.length+' feitos nesta semana</span><div class="week-progress">'+weekSessions.map((x)=>'<i class="week-segment '+(S.completed[x.key]?'done':'')+'"></i>').join('')+'</div></div><div class="home-next-actions"><button class="btn" onclick="go(\'correr\')">'+ic('play',17)+'Começar corrida</button><button class="home-link" onclick="go(\'treino\')">Ver plano</button></div></div>';
+}
+function pendingRunLinkCard() {
+  if (S.pendingRunLink == null) return '';
+  const run=S.runs.find((r)=>String(r.id)===String(S.pendingRunLink)), options=getPlanSessions().filter((x)=>!S.completed[x.key]);
+  if(!run) return '<div class="run-link-card"><p>Corrida salva. Não encontrei sessões pendentes para associar.</p><button class="btn alt" onclick="dismissRunLink()">Fechar</button></div>';
+  if(!options.length) return '<div class="run-link-card"><div class="home-next-label">CORRIDA SALVA</div><p>'+(getPlanWeeks().length?'Não há treinos pendentes no plano para associar.':'Crie um plano para vincular esta corrida a um treino.')+'</p><div class="run-link-actions"><button class="btn alt" onclick="go(\'treino\')">Ver meu plano</button><button class="home-link" onclick="dismissRunLink()">Agora não</button></div></div>';
+  return '<div class="run-link-card"><div class="home-next-label">CORRIDA SALVA</div><h2>Associar ao plano?</h2><p>'+run.dist.toFixed(2).replace('.',',')+' km · '+fmtTime(run.secs)+'</p><label class="run-link-label">Escolha o treino</label><select id="run-link-session">'+options.map((x)=>'<option value="'+svgEsc(x.key)+'">'+svgEsc(x.weekTitle+' · '+x.type+(x.km?' · '+String(x.km).replace('.',',')+' km':''))+'</option>').join('')+'</select>'+(S.runLinkErr?'<p class="err">'+S.runLinkErr+'</p>':'')+'<div class="run-link-actions"><button class="btn" onclick="associateRunWithSession('+run.id+')">Vincular corrida</button><button class="home-link" onclick="dismissRunLink()">Agora não</button></div></div>';
+}
+function associateRunWithSession(runId) {
+  const key=$('#run-link-session') && $('#run-link-session').value;
+  if(!key || !getPlanSessions().some((x)=>x.key===key)) { S.runLinkErr='Escolha um treino válido.'; return render(); }
+  S.runLinks[String(runId)]=key; S.completed[key]=true; S.pendingRunLink=null; S.runLinkErr=''; save(); render();
+}
+function dismissRunLink() { S.pendingRunLink=null; S.runLinkErr=''; saveLocal(); render(); }function weekDateLabel(start,index) {
   if (!start) return '';
   const d = new Date(start+'T12:00:00'); if (Number.isNaN(d.getTime())) return '';
   d.setDate(d.getDate()+index*7); const end = new Date(d); end.setDate(end.getDate()+6);
@@ -335,15 +373,18 @@ function toggleSession(week,index) { const key=week+'-'+index; S.openSession=S.o
 function weekCard(w,index,start) {
   const open=Array.isArray(S.openWeeks) ? S.openWeeks.includes(index) : index===semAtual();
   const days=Array.isArray(w.dias)?w.dias:[], total=days.reduce((sum,d)=>sum+(Number(d.km)||0),0), title=w.titulo||('Semana '+(index+1));
+  const completed=days.filter((d,j)=>S.completed[sessionKey(index,j)]).length;
+  const segments=days.map((d,j)=>'<i class="week-segment '+(S.completed[sessionKey(index,j)]?'done':'')+'"></i>').join('');
   const rows=days.map((d,j)=>{
-    const key=index+'-'+j, expanded=S.openSession===key, type=d.tipo||d.n||'Treino', dia=d.dia||('Treino '+(j+1));
+    const key=index+'-'+j, expanded=S.openSession===key, type=d.tipo||d.n||'Treino', dia=d.dia||('Treino '+(j+1)), done=!!S.completed[sessionKey(index,j)];
     const distance=Number(d.km)>0 ? String(d.km).replace('.',',')+' km' : '';
     const pre=Array.isArray(d.pre)&&d.pre.length ? '<div class="session-advice"><b>ANTES</b>'+d.pre.map((x)=>'<span>• '+x+'</span>').join('')+'</div>' : '';
     const post=Array.isArray(d.pos)&&d.pos.length ? '<div class="session-advice"><b>DEPOIS</b>'+d.pos.map((x)=>'<span>• '+x+'</span>').join('')+'</div>' : '';
     const detail=expanded ? '<div class="session-detail">'+(d.descricao ? '<p>'+d.descricao+'</p>' : '')+pre+post+'</div>' : '';
-    return '<div class="session-item"><button class="session-row" aria-expanded="'+expanded+'" onclick="toggleSession('+index+','+j+')"><span class="session-day">'+dia+'</span><span class="workout-badge '+workoutClass(type)+'"></span><span class="session-title">'+type+'</span><span class="session-distance">'+distance+'</span>'+ic('back',18)+'</button>'+detail+'</div>';
+    const statusLabel=done?'Desmarcar treino concluído':'Marcar treino como concluído';
+    return '<div class="session-item"><div class="session-row"><button class="session-open" aria-expanded="'+expanded+'" onclick="toggleSession('+index+','+j+')"><span class="session-day">'+dia+'</span><span class="workout-badge '+workoutClass(type)+'"></span><span class="session-title">'+type+'</span><span class="session-distance">'+distance+'</span>'+ic('back',18)+'</button><button class="session-complete '+(done?'done':'')+'" aria-label="'+statusLabel+'" title="'+statusLabel+'" onclick="toggleSessionComplete('+index+','+j+')">'+ic(done?'check':'plus',17)+'</button></div>'+detail+'</div>';
   }).join('');
-  return '<article class="week-card '+(open?'is-open':'')+'"><button class="week-toggle" aria-expanded="'+open+'" onclick="toggleWeek('+index+')"><span class="week-topline">'+weekDateLabel(start,index)+'</span><span class="week-heading"><b>'+title+'</b>'+ic('back',21)+'</span><span class="week-stats"><span>Total de treinos: <b>'+days.length+'</b></span><span>Distância: <b>'+total.toFixed(2).replace('.',',')+' km</b></span></span></button>'+(open ? '<div class="week-sessions">'+(w.foco ? '<p class="week-focus">'+w.foco+'</p>' : '')+rows+'</div>' : '')+'</article>';
+  return '<article class="week-card '+(open?'is-open':'')+'"><button class="week-toggle" aria-expanded="'+open+'" onclick="toggleWeek('+index+')"><span class="week-topline">'+weekDateLabel(start,index)+'</span><span class="week-heading"><b>'+title+'</b>'+ic('back',21)+'</span><span class="week-progress" aria-label="'+completed+' de '+days.length+' treinos concluídos">'+segments+'</span><span class="week-progress-label">'+completed+' de '+days.length+' treinos concluídos</span><span class="week-stats"><span>Total de treinos: <b>'+days.length+'</b></span><span>Distância: <b>'+total.toFixed(2).replace('.',',')+' km</b></span></span></button>'+(open ? '<div class="week-sessions">'+(w.foco ? '<p class="week-focus">'+w.foco+'</p>' : '')+rows+'</div>' : '')+'</article>';
 }const semChips = () => S.treino.semanas.length > 1 ? '<div class="chips">'+S.treino.semanas.map((w, i) => '<button class="chip '+(semAtual() === i ? 'on' : '')+'" onclick="setSem('+i+')">Semana '+(i+1)+'</button>').join('')+'</div>' : '';
 function setSem(i) { S.sem = i; render(); }
 
@@ -447,7 +488,7 @@ function gPause() {
 function gFinish() {
   navigator.geolocation.clearWatch(G.wid); clearInterval(G.iv); try { G.wl && G.wl.release(); } catch (e) {}
   const secs = gEl(), d = new Date(); let id = null;
-  if (G.dist >= 0.01 && secs > 0) { id = Date.now(); S.runs.push({ id, dist: Math.round(G.dist*100)/100, secs, l: d.getDate()+'/'+(d.getMonth()+1), route: decim(G.pts) }); S.runs.sort((a, b) => a.id - b.id); save(); }
+  if (G.dist >= 0.01 && secs > 0) { id = Date.now(); S.runs.push({ id, dist: Math.round(G.dist*100)/100, secs, l: d.getDate()+'/'+(d.getMonth()+1), route: decim(G.pts), source:'gps' }); S.runs.sort((a, b) => a.id - b.id); S.pendingRunLink=id; S.runLinkErr=''; save(); }
   try { localStorage.removeItem('r2_live'); } catch (e) {}
   G = null; S.open = id; go('corridas');
 }
@@ -483,7 +524,7 @@ async function cloudPush() {
     const ids = new Set(S.runs.map((r) => r.id)), syn = new Set(S.synced), dirty = new Set(S.dirtyRuns);
     for (const r of S.runs) if (!syn.has(r.id) || dirty.has(r.id)) { await FB.saveRun(r); syn.add(r.id); dirty.delete(r.id); }
     for (const id of [...syn]) if (!ids.has(id)) { await FB.delRun(id); syn.delete(id); dirty.delete(id); }
-    await FB.saveMeta({ perfil: S.perfil, plano: S.plano, claimed: S.claimed });
+    await FB.saveMeta({ perfil: S.perfil, plano: S.plano, claimed: S.claimed, completed: S.completed, runLinks: S.runLinks });
     S.synced = [...syn]; S.dirtyRuns = [...dirty]; S.deletedRuns = S.deletedRuns.filter((id) => syn.has(id)); saveLocal(); S.cloud = 'ok';
   } catch (e) { S.cloud = 'Erro ao sincronizar: ' + (e.code || e.message); }
   if (S.tab === 'conta') render();
@@ -494,7 +535,7 @@ async function cloudPush() {
       const gone = new Set(S.deletedRuns), dirty = new Set(S.dirtyRuns); c.runs.forEach((r) => { if (!gone.has(r.id) && !dirty.has(r.id)) m.set(r.id, r); });
       S.runs = [...m.values()].sort((a, b) => a.id - b.id);
       S.synced = [...new Set([...S.synced, ...c.runs.map((r) => r.id)])];
-      if (c.meta) { S.perfil = c.meta.perfil || S.perfil; S.plano = c.meta.plano || S.plano; S.claimed = { ...(c.meta.claimed || {}), ...S.claimed }; }
+      if (c.meta) { S.perfil = c.meta.perfil || S.perfil; S.plano = c.meta.plano || S.plano; S.claimed = { ...(c.meta.claimed || {}), ...S.claimed }; S.completed = { ...(c.meta.completed || {}), ...S.completed }; S.runLinks = { ...(c.meta.runLinks || {}), ...S.runLinks }; }
       saveLocal(); await cloudPush();
     } catch (e) { S.cloud = 'Erro ao carregar: ' + (e.code || e.message); }
   }
