@@ -30,12 +30,13 @@ const NUTRI = {
   pre: [['Banana + pasta de amendoim','30–60 min antes. Energia rápida.'],['Pão com mel ou geleia','1h antes. Carboidrato fácil de digerir.'],['Aveia com fruta','1–2h antes. Energia mais duradoura.'],['Água','Beba aos poucos nas horas anteriores.']],
   pos: [['Ovos + pão ou tapioca','Proteína + carbo para recuperar.'],['Iogurte com frutas e granola','Prático e rápido.'],['Arroz, feijão e frango','Refeição completa em até 2h.'],['Água ou água de coco','Repor líquidos e minerais.']]
 };
-let S = { tab:'home', synced:[], treino:null, cloud:'', runs:[], perfil:{nivel:'Iniciante',objetivo:'Saúde',dias:3}, plano:null, claimed:{}, open:null, err:'' };
+Object.assign(P, { more:'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>', edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>' });
+let S = { tab:'home', synced:[], treino:null, cloud:'', runs:[], perfil:{nivel:'Iniciante',objetivo:'Saúde',dias:3}, plano:null, claimed:{}, open:null, err:'', chartRange:7, menuRun:null, editRun:null, runEditErr:'', deletedRuns:[], dirtyRuns:[], openWeeks:null, openSession:null, authMode:'in', authBusy:false };
 try {
   const g = (k) => JSON.parse(localStorage.getItem(k) || 'null');
-  S.runs = g('r2_runs') || []; S.perfil = g('r2_perfil') || S.perfil; S.plano = g('r2_plano'); S.claimed = g('r2_claimed') || {}; S.synced = g('r2_synced') || [];
+  S.runs = g('r2_runs') || []; S.perfil = g('r2_perfil') || S.perfil; S.plano = g('r2_plano'); S.claimed = g('r2_claimed') || {}; S.synced = g('r2_synced') || []; S.deletedRuns = g('r2_deleted_runs') || []; S.dirtyRuns = g('r2_dirty_runs') || [];
 } catch (e) {}
-const saveLocal = () => { try { localStorage.setItem('r2_runs', JSON.stringify(S.runs)); localStorage.setItem('r2_perfil', JSON.stringify(S.perfil)); localStorage.setItem('r2_plano', JSON.stringify(S.plano)); localStorage.setItem('r2_claimed', JSON.stringify(S.claimed)); localStorage.setItem('r2_synced', JSON.stringify(S.synced)); } catch (e) {} };
+const saveLocal = () => { try { localStorage.setItem('r2_runs', JSON.stringify(S.runs)); localStorage.setItem('r2_perfil', JSON.stringify(S.perfil)); localStorage.setItem('r2_plano', JSON.stringify(S.plano)); localStorage.setItem('r2_claimed', JSON.stringify(S.claimed)); localStorage.setItem('r2_synced', JSON.stringify(S.synced)); localStorage.setItem('r2_deleted_runs', JSON.stringify(S.deletedRuns)); localStorage.setItem('r2_dirty_runs', JSON.stringify(S.dirtyRuns)); } catch (e) {} };
 const save = () => { saveLocal(); cloudSave(); };
 
 const toSecs = (s) => { if (!s) return null; const p = String(s).trim().split(':').map(Number); if (p.some(isNaN)) return null; if (p.length === 1) return p[0]*60; if (p.length === 2) return p[0]*60+p[1]; return p[0]*3600+p[1]*60+p[2]; };
@@ -107,17 +108,62 @@ function xpTotal() {
   const s = calcStats(S.runs);
   return Math.round(s.km*10) + CONQ.filter((c) => c.ok(s)).reduce((a, c) => a + c.xp, 0) + Object.values(S.claimed).reduce((a, v) => a + v, 0);
 }
-function bars(data, fmt, color, invert) {
-  if (!data.length) return '<span class="mut">Registre corridas para ver o gráfico.</span>';
-  const vs = data.map((d) => d.v), max = Math.max(...vs), min = Math.min(...vs);
-  return '<div class="chart">' + data.map((d) => { const h = invert ? 30+(1-(d.v-min)/(max-min||1))*70 : 15+(d.v/(max||1))*85;
-    return '<div><small>'+fmt(d.v)+'</small><b style="height:'+h+'px;background:'+color+';box-shadow:0 2px 8px '+color+'80"></b><small>'+d.l+'</small></div>'; }).join('') + '</div>';
+function niceStep(value) {
+  const raw = Math.max(value || 1, .01), power = Math.pow(10, Math.floor(Math.log10(raw))), unit = raw / power;
+  return (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10) * power;
+}
+const svgEsc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+function chartSvg(data, kind) {
+  if (!data.length) return '<div class="chart-empty">Sem corridas neste período.</div>';
+  const width = Math.max(360, data.length * 48 + 58), height = 220, left = 46, right = width - 14, top = 18, bottom = 166;
+  const plotW = right - left, plotH = bottom - top, slot = plotW / data.length, x = (i) => left + slot * (i + .5), labelEvery = Math.max(1, Math.ceil(data.length / 10));
+  const axis = [], labels = [];
+  if (kind === 'distance') {
+    const max = Math.max(...data.map((r) => Number(r.dist) || 0)), step = niceStep(max / 4), ceiling = step * 4;
+    for (let i = 0; i <= 4; i++) {
+      const v = ceiling * i / 4, y = bottom - plotH * i / 4;
+      axis.push('<line class="chart-grid" x1="'+left+'" y1="'+y+'" x2="'+right+'" y2="'+y+'"/><text class="chart-axis" x="'+(left-8)+'" y="'+(y+3)+'" text-anchor="end">'+(step < 1 ? v.toFixed(1) : v.toFixed(0))+'</text>');
+    }
+    data.forEach((r, i) => {
+      const v = Number(r.dist) || 0, h = Math.max(2, v / ceiling * plotH), bx = x(i) - Math.min(28, slot*.62)/2, by = bottom-h, bw = Math.min(28, slot*.62), title = svgEsc(r.l+' · '+v.toFixed(2)+' km');
+      axis.push('<rect class="chart-bar" x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+h+'" rx="5"><title>'+title+'</title></rect>');
+      if (slot >= 34) axis.push('<text class="chart-value" x="'+x(i)+'" y="'+Math.max(top+10,by-5)+'" text-anchor="middle">'+v.toFixed(1)+'</text>');
+    });
+  } else {
+    const values = data.map((r) => Number(r.secs) / Number(r.dist)).filter(Number.isFinite), min = Math.min(...values), max = Math.max(...values), pad = Math.max(30,(max-min)*.2);
+    let low = Math.floor((min-pad)/30)*30, high = Math.ceil((max+pad)/30)*30;
+    if (high-low < 120) { const center = (high+low)/2; low = Math.floor((center-60)/30)*30; high = low+120; }
+    const yOf = (v) => top + (high-v)/(high-low)*plotH;
+    for (let i = 0; i <= 4; i++) {
+      const v = high - (high-low)*i/4, y = top + plotH*i/4;
+      axis.push('<line class="chart-grid" x1="'+left+'" y1="'+y+'" x2="'+right+'" y2="'+y+'"/><text class="chart-axis" x="'+(left-8)+'" y="'+(y+3)+'" text-anchor="end">'+fmtTime(v)+'</text>');
+    }
+    const points = data.map((r,i) => x(i)+','+yOf(Number(r.secs)/Number(r.dist))).join(' ');
+    axis.push('<polyline class="chart-line" points="'+points+'"/>');
+    data.forEach((r,i) => { const v=Number(r.secs)/Number(r.dist); axis.push('<circle class="chart-point" cx="'+x(i)+'" cy="'+yOf(v)+'" r="5"><title>'+svgEsc(r.l+' · '+fmtTime(v)+' /km')+'</title></circle>'); });
+  }
+  data.forEach((r,i) => { if (i % labelEvery === 0 || i === data.length-1) labels.push('<text class="chart-date" x="'+x(i)+'" y="190" text-anchor="middle">'+svgEsc(r.l)+'</text>'); });
+  return '<div class="chart-scroll"><svg class="chart-svg" width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="'+(kind === 'distance' ? 'Distância em quilômetros por corrida' : 'Pace médio por quilômetro nas corridas')+'">'+axis.join('')+labels.join('')+'</svg></div>';
+}
+function setChartRange(value) { S.chartRange = value === 'all' ? 'all' : Number(value); render(); }
+function manualRun(r) { return !(r.route && r.route.length) && (r.source === 'manual' || !r.source); }
+function runEditDate(ts) { const d = new Date(ts); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear(); }
+function runHistoryCard(r) {
+  const gps = r.route && r.route.length > 1, editable = manualRun(r), editing = S.editRun === r.id && editable, menu = S.menuRun === r.id;
+  const details = '<div class="flex run-summary"><div class="ibox">'+ic(gps ? 'pin' : 'trend',18)+'</div><div style="flex:1"><b>'+r.dist+' km</b><div class="mut" style="font-size:12px">'+r.l+' · '+fmtTime(r.secs)+'</div></div><b class="run-pace">'+fmtPace(r.secs/r.dist)+'</b><button class="run-menu-button" aria-label="Opções da corrida" onclick="event.stopPropagation();toggleRunMenu('+r.id+')">'+ic('more',20)+'</button></div>';
+  const actions = menu ? '<div class="run-menu" onclick="event.stopPropagation()">'+(editable ? '<button onclick="event.stopPropagation();editRun('+r.id+')">'+ic('edit',17)+'Editar</button>' : '')+'<button class="delete-action" onclick="event.stopPropagation();deleteRun('+r.id+')">'+ic('trash',17)+'Apagar</button></div>' : '';
+  const form = editing ? '<div class="run-edit" onclick="event.stopPropagation()"><label>Distância (km)<input id="edit-dist-'+r.id+'" inputmode="decimal" value="'+Number(r.dist).toFixed(2)+'"></label><label>Tempo<input id="edit-time-'+r.id+'" inputmode="decimal" value="'+fmtTime(r.secs)+'"></label><label>Data (DD/MM/AAAA)<input id="edit-date-'+r.id+'" value="'+runEditDate(r.id)+'"></label>'+(S.runEditErr ? '<p class="err">'+S.runEditErr+'</p>' : '')+'<div class="run-edit-buttons"><button class="btn" onclick="saveRunEdit('+r.id+')">Salvar</button><button class="btn alt" onclick="cancelRunEdit()">Cancelar</button></div></div>' : '';
+  return '<div class="card run-card"'+(gps ? ' onclick="toggleRun('+r.id+')" style="cursor:pointer"' : '')+'>'+details+actions+form+(S.open === r.id && gps ? '<div id="hm" class="lmap" style="height:200px;margin:12px 0 0"></div>' : '')+'</div>';
 }
 const tile = (i, v, l) => '<div class="card tile"><div class="ibox">'+ic(i,18)+'</div><div class="big">'+v+'</div><div class="lbl" style="margin:2px 0 0">'+l+'</div></div>';
 const field = (l, id, ph, mode) => '<div class="lbl">'+l+'</div><input id="'+id+'" placeholder="'+ph+'"'+(mode ? ' inputmode="'+mode+'"' : '')+' oninput="'+(id[0]==='k' ? 'calc()' : '')+'">';
 
 let sim = null;
 const V = {
+  login() {
+    const creating = S.authMode === 'up';
+    return '<main class="auth-wrap"><div class="brand auth-brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div></div><div class="card auth-card"><h1>'+(creating ? 'Criar conta' : 'Bem-vindo')+'</h1><p class="sub">'+(creating ? 'Crie sua conta para salvar suas corridas e acompanhar sua evolução.' : 'Entre para acessar seus treinos e suas corridas.')+'</p><div class="lbl">E-MAIL</div><input id="ce" type="email" autocomplete="email" placeholder="voce@email.com"><div class="lbl">SENHA</div><input id="cs" type="password" autocomplete="'+(creating ? 'new-password' : 'current-password')+'" placeholder="Mínimo de 6 caracteres">'+(S.err ? '<div class="err">'+S.err+'</div>' : '')+'<button class="btn" style="margin-top:14px" onclick="authDo(\''+(creating ? 'up' : 'in')+'\')" '+(S.authBusy ? 'disabled' : '')+'>'+(S.authBusy ? 'Aguarde...' : (creating ? 'Criar conta' : 'Entrar'))+'</button><button class="auth-switch" onclick="authMode(\''+(creating ? 'in' : 'up')+'\')">'+(creating ? 'Já tem conta? Entrar' : 'Não tem conta? Criar conta')+'</button></div><p class="auth-foot">Seus dados de corrida ficam associados à sua conta.</p></main>';
+  },
   home() {
     const s = calcStats(S.runs), xp = xpTotal(), lvl = Math.floor(xp/100)+1, ult = S.runs[S.runs.length-1];
     return '<div class="brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div><button class="back" style="margin:0 0 0 auto" onclick="go(\'conta\')" aria-label="Conta">'+ic('user',24)+'</button></div>' +
@@ -128,17 +174,26 @@ const V = {
       '<div class="row" style="margin-top:14px"><button class="card flex" style="margin:0;color:inherit;font:700 13px Sora,sans-serif;cursor:pointer;text-align:left" onclick="go(\'calc\')"><span class="ibox">'+ic('calc',18)+'</span>Calculadora</button><button class="card flex" style="margin:0;color:inherit;font:700 13px Sora,sans-serif;cursor:pointer;text-align:left" onclick="go(\'comida\')"><span class="ibox">'+ic('cup',18)+'</span>Alimentação</button></div>';
   },
   corridas() {
-    const last = S.runs.slice(-7);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const range = S.chartRange || 7;
+    const filtered = range === 'all' ? S.runs : range === 7 ? S.runs.slice(-7) : S.runs.filter((r) => r.id >= today.getTime() - range*86400000);
+    const data = filtered.slice(-40), totalKm = filtered.reduce((a,r) => a + Number(r.dist || 0),0), totalSecs = filtered.reduce((a,r) => a + Number(r.secs || 0),0);
+    const avgKm = filtered.length ? totalKm/filtered.length : 0, avgPace = totalKm ? totalSecs/totalKm : 0;
+    const bestPace = filtered.length ? Math.min(...filtered.map((r) => r.secs/r.dist)) : 0;
+    const period = range === 7 ? 'Últimas 7 corridas' : range === 'all' ? 'Todo o histórico' : 'Últimos '+range+' dias';
+    const metric = (label,value) => '<div class="chart-metric"><span>'+label+'</span><b>'+value+'</b></div>';
+    const ranges = [[7,'7 corridas'],[30,'30 dias'],[90,'90 dias'],['all','Tudo']];
     return '<h1>Corridas</h1><div class="card">'+field('DISTÂNCIA (KM)','cd','ex: 5','decimal')+field('TEMPO (MM:SS OU H:MM:SS)','ct','ex: 28:30')+field('DATA (DD/MM/AAAA, VAZIO = HOJE)','cdt','ex: 22/11/2026')+
       '<button class="btn" onclick="addRun()">'+ic('plus',18)+'Salvar corrida</button>'+
-      '<label class="btn alt" style="margin-top:12px">'+ic('upload',18)+'Importar arquivo GPX<input type="file" accept=".gpx,application/gpx+xml" style="display:none" onchange="importGpx(this)"></label>'+(S.err ? '<div class="err">'+S.err+'</div>' : '')+'</div>' +
-      '<div class="card"><h2>Distância (km)</h2>'+bars(last.map((r) => ({v:r.dist,l:r.l})), (v) => v.toFixed(1), '#5B94FF')+'</div>' +
-      '<div class="card"><h2>Pace (mais alto = mais rápido)</h2>'+bars(last.map((r) => ({v:r.secs/r.dist,l:r.l})), fmtTime, '#8CC8FF', true)+'</div>' +
-      (S.runs.length ? '<h2>Histórico</h2>' + [...S.runs].reverse().map((r) => { const gps = r.route && r.route.length > 1;
-        return '<div class="card"'+(gps ? ' onclick="toggleRun('+r.id+')" style="cursor:pointer"' : '')+'><div class="flex"><div class="ibox">'+ic(gps ? 'pin' : 'trend',18)+'</div><div style="flex:1"><b>'+r.dist+' km</b><div class="mut" style="font-size:12px">'+r.l+' · '+fmtTime(r.secs)+'</div></div><b style="color:var(--acc2);font-size:13px">'+fmtPace(r.secs/r.dist)+'</b></div>'+(S.open === r.id && gps ? '<div id="hm" class="lmap" style="height:200px;margin:12px 0 0"></div>' : '')+'</div>'; }).join('') +
-        '<button class="btn alt" onclick="apagar()">'+ic('trash',18)+'Apagar histórico</button>' : '');
-  },
-  correr() {
+      '<label class="btn alt" style="margin-top:12px">'+ic('upload',18)+'Importar arquivo GPX<input type="file" accept=".gpx,application/gpx+xml" style="display:none" onchange="importGpx(this)"></label>'+(S.err ? '<div class="err">'+S.err+'</div>' : '')+'</div>'+
+      '<section class="progress-section"><h2>Seu progresso</h2><p class="sub">Veja sua distância e seu ritmo ao longo do tempo.</p><div class="chips chart-filters">'+ranges.map(([v,l]) => '<button class="chip '+(String(range)===String(v)?'on':'')+'" onclick="setChartRange(\''+v+'\')">'+l+'</button>').join('')+'</div>'+
+      (filtered.length ? '<p class="chart-period">'+period+' · '+filtered.length+' '+(filtered.length===1?'corrida':'corridas')+'</p><div class="chart-summary">'+metric('DISTÂNCIA TOTAL',totalKm.toFixed(1)+' km')+metric('MÉDIA POR CORRIDA',avgKm.toFixed(1)+' km')+metric('PACE MÉDIO',fmtPace(avgPace))+metric('MELHOR PACE',fmtPace(bestPace))+'</div>'+
+      '<div class="card chart-card"><h3>Distância por corrida</h3><p class="chart-help">Cada barra representa uma corrida. Barra mais alta = mais quilômetros.</p>'+chartSvg(data,'distance')+'</div>'+
+      '<div class="card chart-card"><h3>Ritmo (pace)</h3><p class="chart-help">Pace é o tempo por quilômetro. Ponto mais baixo = mais rápido.</p>'+chartSvg(data,'pace')+'</div>'+
+      (filtered.length>data.length?'<p class="chart-note">Os gráficos mostram as 40 corridas mais recentes deste período; o resumo considera todas.</p>':'') : '<div class="card chart-empty">Ainda não há corridas neste período. Registre uma corrida para ver sua evolução.</div>')+
+      '</section>'+
+      (S.runs.length ? '<h2>Histórico completo</h2>' + [...S.runs].reverse().map(runHistoryCard).join('') : '');
+  },  correr() {
     if (!G) {
       const live = localStorage.getItem('r2_live');
       return '<h1>Correr</h1>' + (live ? '<div class="card"><h2>Corrida interrompida</h2><p class="sub">O navegador fechou durante uma corrida. Quer retomar de onde parou?</p><button class="btn" onclick="gResume()">Retomar corrida</button><div style="height:10px"></div><button class="btn alt" onclick="gDiscard()">Descartar</button></div>' : '') +
@@ -166,15 +221,16 @@ const V = {
       field('DISTÂNCIA (KM)','kd','ex: 5','decimal')+field('TEMPO (MM:SS OU H:MM:SS)','kt','ex: 28:30')+field('PACE (MM:SS POR KM)','kp','ex: 5:42')+'<button class="btn alt" onclick="limpar()">'+ic('refresh',18)+'Limpar</button></div><div id="res"></div>';
   },
   treino() {
-    const p = S.perfil, chips = (k, o) => '<div class="chips">'+o.map((x) => '<button class="chip '+(String(p[k]) === String(x) ? 'on' : '')+'" onclick="setP(\''+k+'\',\''+x+'\')">'+x+'</button>').join('')+'</div>';
-    const T0 = S.treino, w = T0 ? T0.semanas[semAtual()] : (S.plano ? { dias: S.plano.semana, resumo: S.plano.resumo } : null);
-    return '<h1>Meu treino</h1>' + (S.treino ? '<p class="sub">Plano personalizado'+(S.treino.gerado ? ' · gerado em '+S.treino.gerado : '')+'</p>' : '<p class="sub">Ainda não há plano personalizado. Peça ao Claude para gerar o seu e salve em treino.json. Enquanto isso, dá para gerar um plano básico.</p>') +
-      (T0 ? semChips() : '') + (w && w.titulo ? '<h2>'+w.titulo+'</h2>' : '') + (w ? planHtml(w) : '') +
-      (T0 && T0.dicas && T0.dicas.length ? '<div class="card"><h2>Dicas</h2>'+T0.dicas.map((x) => '<div class="mut" style="margin-bottom:8px;font-size:14px;line-height:1.5">• '+x+'</div>').join('')+'</div>' : '') +
-      '<div class="card"><h2>Seu perfil</h2><div class="lbl">NÍVEL</div>'+chips('nivel',['Iniciante','Intermediário','Avançado'])+'<div class="lbl">OBJETIVO</div>'+chips('objetivo',['Saúde','5K','10K','21K'])+'<div class="lbl">DIAS POR SEMANA</div>'+chips('dias',[2,3,4,5]) +
-      (S.treino ? '' : '<button class="btn" onclick="gerar()">'+ic('star',18)+'Gerar plano básico</button>')+'<p class="note">O nível ajusta as metas dos desafios semanais.</p></div>';
-  },
-  comida() {
+    const p = S.perfil, T0 = S.treino;
+    const basic = !T0 && S.plano ? [{ titulo:'Plano básico', foco:S.plano.resumo, dias:S.plano.semana.map((x,i) => ({ dia:'Treino '+(i+1), tipo:x.n, km:x.km, descricao:x.d })) }] : [];
+    const weeks = T0 ? T0.semanas : basic;
+    const chips = (k,o) => '<div class="chips">'+o.map((x) => '<button class="chip '+(String(p[k])===String(x)?'on':'')+'" onclick="setP(\''+k+'\',\''+x+'\')">'+x+'</button>').join('')+'</div>';
+    return '<h1>Meu treino</h1>'+(T0 ? '<p class="sub">Plano personalizado'+(T0.gerado ? ' · gerado em '+T0.gerado : '')+'</p>' : '<p class="sub">'+(S.plano ? 'Seu plano básico, organizado por semana.' : 'Ainda não há plano personalizado. Enquanto isso, você pode gerar um plano básico.')+'</p>')+
+      (weeks.length ? weeks.map((w,i) => weekCard(w,i,T0 && T0.inicio)).join('') : '')+
+      (T0 && T0.dicas && T0.dicas.length ? '<div class="card"><h2>Dicas</h2>'+T0.dicas.map((x) => '<div class="mut" style="margin-bottom:8px;font-size:14px;line-height:1.5">• '+x+'</div>').join('')+'</div>' : '')+
+      '<div class="card"><h2>Seu perfil</h2><div class="lbl">NÍVEL</div>'+chips('nivel',['Iniciante','Intermediário','Avançado'])+'<div class="lbl">OBJETIVO</div>'+chips('objetivo',['Saúde','5K','10K','21K'])+'<div class="lbl">DIAS POR SEMANA</div>'+chips('dias',[2,3,4,5])+
+      (T0 || S.plano ? '' : '<button class="btn" onclick="gerar()">'+ic('star',18)+'Gerar plano básico</button>')+'<p class="note">O nível ajusta as metas dos desafios semanais.</p></div>';
+  },  comida() {
     const bl = (t, a) => '<div class="card"><h2>'+t+'</h2>'+a.map((x) => '<div style="margin-bottom:12px"><b style="font-size:14px">'+x[0]+'</b><div class="mut" style="font-size:13px">'+x[1]+'</div></div>').join('')+'</div>';
     const li = (t, a) => '<div class="lbl" style="margin-top:12px">'+t+'</div>'+(a || []).map((x) => '<div style="margin-bottom:4px;font-size:14px">• '+x+'</div>').join('');
     return '<button class="back" onclick="go(\'home\')">'+ic('back',20)+'Início</button><h1>Alimentação</h1>' +
@@ -188,6 +244,15 @@ const V = {
   }
 };
 function render0() {
+  const fb = window.FB;
+  if (!fb || !fb.ready || !fb.user) {
+    $('#tabs').style.display = 'none';
+    if (window.firebaseLoadFailed) $('#app').innerHTML = '<main class="auth-wrap"><div class="brand auth-brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div></div><div class="card"><h1>Não foi possível conectar</h1><p class="sub">Confira sua internet e tente abrir o app novamente.</p></div></main>';
+    else if (!fb || !fb.ready) $('#app').innerHTML = '<main class="auth-wrap"><div class="brand auth-brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div></div><div class="card"><p class="sub">Conectando à sua conta...</p></div></main>';
+    else $('#app').innerHTML = V.login();
+    return;
+  }
+  $('#tabs').style.display = '';
   $('#app').innerHTML = V[S.tab]();
   const T = (k, i) => '<button class="t '+(S.tab === k ? 'on' : '')+'" onclick="go(\''+k+'\')" aria-label="'+k+'">'+ic(i,24)+'<i></i></button>';
   $('#tabs').innerHTML = T('home','home')+T('corridas','chart')+'<button class="fab" onclick="go(\'correr\')" aria-label="Correr">'+ic('play',26)+'</button>'+T('metas','award')+T('treino','cal');
@@ -205,9 +270,26 @@ function addRun() {
   if (!dist || !secs) { S.err = 'Preencha distância e tempo.'; return render(); }
   const dt = parseData($('#cdt').value);
   if (!dt) { S.err = 'Data inválida ou no futuro. Use dd/mm/aaaa.'; return render(); }
-  S.err = ''; S.runs.push({ id: dt.ts, dist, secs, l: dt.l }); S.runs.sort((a, b) => a.id - b.id); save(); render();
+  S.err = ''; S.runs.push({ id: dt.ts, dist, secs, l: dt.l, source:'manual' }); S.runs.sort((a, b) => a.id - b.id); save(); render();
 }
-function apagar() { S.runs = []; save(); render(); }
+function toggleRunMenu(id) { S.menuRun = S.menuRun === id ? null : id; S.editRun = null; S.runEditErr = ''; render(); }
+function editRun(id) { const r = S.runs.find((x) => x.id === id); if (!r || !manualRun(r)) return; S.editRun = id; S.menuRun = null; S.runEditErr = ''; render(); }
+function cancelRunEdit() { S.editRun = null; S.runEditErr = ''; render(); }
+function saveRunEdit(id) {
+  const r = S.runs.find((x) => x.id === id); if (!r || !manualRun(r)) return;
+  const dist = num($('#edit-dist-'+id).value), secs = toSecs($('#edit-time-'+id).value), dt = parseData($('#edit-date-'+id).value);
+  if (!dist || dist <= 0 || !secs || secs <= 0) { S.runEditErr = 'Confira a distância e o tempo.'; return render(); }
+  if (!dt) { S.runEditErr = 'Data inválida ou no futuro. Use DD/MM/AAAA.'; return render(); }
+  let newId = dkey(dt.ts) === dkey(id) ? id : dt.ts;
+  while (S.runs.some((x) => x.id === newId && x.id !== id)) newId++;
+  S.runs = S.runs.filter((x) => x.id !== id); S.runs.push({ ...r, id:newId, dist, secs, l:dt.l, source:'manual' }); S.runs.sort((x,y) => x.id-y.id);
+  if (newId === id) S.dirtyRuns = [...new Set([...S.dirtyRuns,id])]; else if (S.synced.includes(id)) S.deletedRuns = [...new Set([...S.deletedRuns,id])];
+  S.editRun = null; S.menuRun = null; S.runEditErr = ''; save(); render();
+}
+function deleteRun(id) {
+  const r = S.runs.find((x) => x.id === id); if (!r || !confirm('Apagar esta corrida do histórico?')) return;
+  S.runs = S.runs.filter((x) => x.id !== id); if (S.synced.includes(id)) S.deletedRuns = [...new Set([...S.deletedRuns,id])]; if (S.open === id) S.open = null; S.menuRun = null; S.editRun = null; save(); render();
+}
 function resgatar(i) { const d = desafios()[i]; S.claimed[d.key] = d.xp; save(); render(); }
 function setP(k, v) { S.perfil[k] = k === 'dias' ? Number(v) : v; save(); render(); }
 function gerar() { S.plano = gerarPlano(S.perfil); save(); render(); }
@@ -234,7 +316,35 @@ function semAtual() {
   const n = Math.floor((Date.now() - Date.parse(t.inicio + 'T00:00:00')) / (7*86400000));
   return Math.max(0, Math.min(t.semanas.length-1, n));
 }
-const semChips = () => S.treino.semanas.length > 1 ? '<div class="chips">'+S.treino.semanas.map((w, i) => '<button class="chip '+(semAtual() === i ? 'on' : '')+'" onclick="setSem('+i+')">Semana '+(i+1)+'</button>').join('')+'</div>' : '';
+function weekDateLabel(start,index) {
+  if (!start) return '';
+  const d = new Date(start+'T12:00:00'); if (Number.isNaN(d.getTime())) return '';
+  d.setDate(d.getDate()+index*7); const end = new Date(d); end.setDate(end.getDate()+6);
+  const months=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  return 'De '+d.getDate()+' '+months[d.getMonth()]+' a '+end.getDate()+' '+months[end.getMonth()];
+}
+function workoutClass(type) {
+  const t=String(type||'').toLowerCase();
+  return /ritmo|interval|fartlek|acelera|tiro/.test(t) ? 'quality' : /longo/.test(t) ? 'long' : /leve|regener/.test(t) ? 'easy' : 'general';
+}
+function toggleWeek(index) {
+  const open=Array.isArray(S.openWeeks) ? [...S.openWeeks] : [semAtual()], i=open.indexOf(index);
+  if(i>=0) open.splice(i,1); else open.push(index); S.openWeeks=open; render();
+}
+function toggleSession(week,index) { const key=week+'-'+index; S.openSession=S.openSession===key ? null : key; render(); }
+function weekCard(w,index,start) {
+  const open=Array.isArray(S.openWeeks) ? S.openWeeks.includes(index) : index===semAtual();
+  const days=Array.isArray(w.dias)?w.dias:[], total=days.reduce((sum,d)=>sum+(Number(d.km)||0),0), title=w.titulo||('Semana '+(index+1));
+  const rows=days.map((d,j)=>{
+    const key=index+'-'+j, expanded=S.openSession===key, type=d.tipo||d.n||'Treino', dia=d.dia||('Treino '+(j+1));
+    const distance=Number(d.km)>0 ? String(d.km).replace('.',',')+' km' : '';
+    const pre=Array.isArray(d.pre)&&d.pre.length ? '<div class="session-advice"><b>ANTES</b>'+d.pre.map((x)=>'<span>• '+x+'</span>').join('')+'</div>' : '';
+    const post=Array.isArray(d.pos)&&d.pos.length ? '<div class="session-advice"><b>DEPOIS</b>'+d.pos.map((x)=>'<span>• '+x+'</span>').join('')+'</div>' : '';
+    const detail=expanded ? '<div class="session-detail">'+(d.descricao ? '<p>'+d.descricao+'</p>' : '')+pre+post+'</div>' : '';
+    return '<div class="session-item"><button class="session-row" aria-expanded="'+expanded+'" onclick="toggleSession('+index+','+j+')"><span class="session-day">'+dia+'</span><span class="workout-badge '+workoutClass(type)+'"></span><span class="session-title">'+type+'</span><span class="session-distance">'+distance+'</span>'+ic('back',18)+'</button>'+detail+'</div>';
+  }).join('');
+  return '<article class="week-card '+(open?'is-open':'')+'"><button class="week-toggle" aria-expanded="'+open+'" onclick="toggleWeek('+index+')"><span class="week-topline">'+weekDateLabel(start,index)+'</span><span class="week-heading"><b>'+title+'</b>'+ic('back',21)+'</span><span class="week-stats"><span>Total de treinos: <b>'+days.length+'</b></span><span>Distância: <b>'+total.toFixed(2).replace('.',',')+' km</b></span></span></button>'+(open ? '<div class="week-sessions">'+(w.foco ? '<p class="week-focus">'+w.foco+'</p>' : '')+rows+'</div>' : '')+'</article>';
+}const semChips = () => S.treino.semanas.length > 1 ? '<div class="chips">'+S.treino.semanas.map((w, i) => '<button class="chip '+(semAtual() === i ? 'on' : '')+'" onclick="setSem('+i+')">Semana '+(i+1)+'</button>').join('')+'</div>' : '';
 function setSem(i) { S.sem = i; render(); }
 
 // ---------- mapa (Leaflet + OpenStreetMap) ----------
@@ -370,19 +480,18 @@ function cloudSave() { if (!window.FB || !FB.configured || !FB.user) return; cle
 async function cloudPush() {
   if (!window.FB || !FB.user) return;
   try {
-    const ids = new Set(S.runs.map((r) => r.id)), syn = new Set(S.synced);
-    for (const r of S.runs) if (!syn.has(r.id)) { await FB.saveRun(r); syn.add(r.id); }
-    for (const id of [...syn]) if (!ids.has(id)) { await FB.delRun(id); syn.delete(id); }
+    const ids = new Set(S.runs.map((r) => r.id)), syn = new Set(S.synced), dirty = new Set(S.dirtyRuns);
+    for (const r of S.runs) if (!syn.has(r.id) || dirty.has(r.id)) { await FB.saveRun(r); syn.add(r.id); dirty.delete(r.id); }
+    for (const id of [...syn]) if (!ids.has(id)) { await FB.delRun(id); syn.delete(id); dirty.delete(id); }
     await FB.saveMeta({ perfil: S.perfil, plano: S.plano, claimed: S.claimed });
-    S.synced = [...syn]; saveLocal(); S.cloud = 'ok';
+    S.synced = [...syn]; S.dirtyRuns = [...dirty]; S.deletedRuns = S.deletedRuns.filter((id) => syn.has(id)); saveLocal(); S.cloud = 'ok';
   } catch (e) { S.cloud = 'Erro ao sincronizar: ' + (e.code || e.message); }
   if (S.tab === 'conta') render();
-}
-window.addEventListener('fb-auth', async () => {
+}window.addEventListener('fb-auth', async () => {
   if (FB.user) {
     try {
       const c = await FB.load(), m = new Map(S.runs.map((r) => [r.id, r]));
-      c.runs.forEach((r) => m.set(r.id, r));
+      const gone = new Set(S.deletedRuns), dirty = new Set(S.dirtyRuns); c.runs.forEach((r) => { if (!gone.has(r.id) && !dirty.has(r.id)) m.set(r.id, r); });
       S.runs = [...m.values()].sort((a, b) => a.id - b.id);
       S.synced = [...new Set([...S.synced, ...c.runs.map((r) => r.id)])];
       if (c.meta) { S.perfil = c.meta.perfil || S.perfil; S.plano = c.meta.plano || S.plano; S.claimed = { ...(c.meta.claimed || {}), ...S.claimed }; }
@@ -391,6 +500,7 @@ window.addEventListener('fb-auth', async () => {
   }
   render();
 });
+function authMode(mode) { S.authMode = mode; S.err = ""; render(); }
 async function authDo(mode) {
   const e = $('#ce').value.trim(), p = $('#cs').value; S.err = '';
   try { await (mode === 'in' ? FB.signIn(e, p) : FB.signUp(e, p)); }

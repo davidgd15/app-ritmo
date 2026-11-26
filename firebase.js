@@ -12,7 +12,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, doc, setDoc, deleteDoc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-const FB = { configured: !!cfg.apiKey, user: null };
+const FB = { configured: !!cfg.apiKey, user: null, ready: false };
 window.FB = FB;
 
 if (FB.configured) {
@@ -39,6 +39,6 @@ if (FB.configured) {
     });
     return { meta: m.exists() ? m.data() : null, runs };
   };
-  onAuthStateChanged(auth, (u) => { FB.user = u; window.dispatchEvent(new Event('fb-auth')); });
+  onAuthStateChanged(auth, (u) => { FB.user = u; FB.ready = true; window.dispatchEvent(new Event('fb-auth')); });
 }
 window.dispatchEvent(new Event('fb-ready'));

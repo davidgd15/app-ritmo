@@ -26,6 +26,6 @@
 function startRitmo(){var a=document.createElement("script");a.src="app.js";document.body.appendChild(a)}
 var leaflet=document.createElement("script");leaflet.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";leaflet.onload=startRitmo;leaflet.onerror=function(){var fallback=document.createElement("script");fallback.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";fallback.onload=startRitmo;fallback.onerror=startRitmo;document.head.appendChild(fallback)};document.head.appendChild(leaflet);
 </script>
-<script type="module" src="firebase.js"></script>
+<script type="module" src="firebase.js" onerror="window.firebaseLoadFailed=true;window.dispatchEvent(new Event(&quot;fb-ready&quot;))"></script>
 </body>
 </html>
