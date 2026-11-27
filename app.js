@@ -221,7 +221,7 @@ const V = {
   treino() {
     const p=S.perfil, T0=S.userPlan||S.treino, weeks=getPlanWeeks();
     const chips=(k,o)=>'<div class="chips">'+o.map((x)=>'<button class="chip '+(String(p[k])===String(x)?'on':'')+'" onclick="setP(\''+k+'\',\''+x+'\')">'+x+'</button>').join('')+'</div>';
-    return '<h1>Meu treino</h1><button class="btn" style="margin:8px 0 14px" onclick="openPlanEditor()">'+ic('plus',18)+'Criar plano</button>'+(T0?'<p class="sub">Plano personalizado'+(T0.gerado?' · gerado em '+T0.gerado:'')+'</p>':'<p class="sub">'+(S.plano?'Seu plano básico, organizado por semana.':'Ainda não há plano personalizado. Enquanto isso, você pode gerar um plano básico.')+'</p>')+
+    return '<h1>Meu treino</h1>'+(S.err?'<div class="err">'+S.err+'</div>':'')+'<button class="btn" style="margin:8px 0 14px" onclick="openPlanEditor()">'+ic('plus',18)+'Criar plano</button>'+(T0?'<p class="sub">Plano personalizado'+(T0.gerado?' · gerado em '+T0.gerado:'')+'</p>':'<p class="sub">'+(S.plano?'Seu plano básico, organizado por semana.':'Ainda não há plano personalizado. Enquanto isso, você pode gerar um plano básico.')+'</p>')+
       (weeks.length?weeks.map((w,i)=>weekCard(w,i,T0&&T0.inicio)).join(''):'')+
       (T0&&T0.dicas&&T0.dicas.length?'<div class="card"><h2>Dicas</h2>'+T0.dicas.map((x)=>'<div class="mut" style="margin-bottom:8px;font-size:14px;line-height:1.5">• '+x+'</div>').join('')+'</div>':'')+
       '<div class="card"><h2>Seu perfil</h2><div class="lbl">NÍVEL</div>'+chips('nivel',['Iniciante','Intermediário','Avançado'])+'<div class="lbl">OBJETIVO</div>'+chips('objetivo',['Saúde','5K','10K','21K'])+'<div class="lbl">DIAS POR SEMANA</div>'+chips('dias',[2,3,4,5])+
@@ -262,24 +262,26 @@ const V = {
     return bk + '<div class="card"><p class="sub">Entre para guardar corridas, metas e plano na nuvem.</p><div class="lbl">E-MAIL</div><input id="ce" type="email" autocomplete="email" placeholder="voce@email.com"><div class="lbl">SENHA</div><input id="cs" type="password" autocomplete="current-password" placeholder="mínimo 6 caracteres"><button class="btn" onclick="authDo(\'in\')">Entrar</button><div style="height:10px"></div><button class="btn alt" onclick="authDo(\'up\')">Criar conta</button>'+(S.err ? '<div class="err">'+S.err+'</div>' : '')+'</div>';
   }
 };
+function tabBarHtml() {
+  const T=(k,i)=>'<button class="t '+(S.tab===k?'on':'')+'" onclick="go(\''+k+'\')" aria-label="'+k+'">'+ic(i,24)+'<i></i></button>';
+  return T('home','home')+T('corridas','chart')+'<button class="fab" onclick="go(\'correr\')" aria-label="Correr">'+ic('play',26)+'</button>'+T('metas','award')+T('treino','cal');
+}
 function render0() {
-  const fb = window.FB;
-  if (!fb || !fb.ready || !fb.user) {
-    $('#tabs').style.display = 'none';
-    if (window.firebaseLoadFailed) $('#app').innerHTML = '<main class="auth-wrap"><div class="brand auth-brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div></div><div class="card"><h1>Não foi possível conectar</h1><p class="sub">Confira sua internet e tente abrir o app novamente.</p></div></main>';
-    else if (!fb || !fb.ready) $('#app').innerHTML = '<main class="auth-wrap"><div class="brand auth-brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div></div><div class="card"><p class="sub">Conectando à sua conta...</p></div></main>';
-    else $('#app').innerHTML = V.login();
+  const fb=window.FB;
+  if(!fb||!fb.ready||!fb.user) {
+    $('#tabs').style.display='none';
+    if(window.firebaseLoadFailed) $('#app').innerHTML='<main class="auth-wrap"><div class="brand auth-brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div></div><div class="card"><h1>Não foi possível conectar</h1><p class="sub">Confira sua internet e tente abrir o app novamente.</p></div></main>';
+    else if(!fb||!fb.ready) $('#app').innerHTML='<main class="auth-wrap"><div class="brand auth-brand"><div class="logo">'+ic('pulse',24)+'</div><div><b>RITMO</b><small>corrida inteligente</small></div></div><div class="card"><p class="sub">Conectando à sua conta...</p></div></main>';
+    else $('#app').innerHTML=V.login();
     return;
   }
-  if(S.sessionSaved){ $('#tabs').style.display='none'; $('#app').innerHTML=V.sessionSuccess(); return; }
-  if(S.activeWorkout){ $('#tabs').style.display='none'; $('#app').innerHTML=S.sessionView==='log'?V.sessionLog():V.sessionDetail(); return; }
-  if(S.planEditor){ $('#tabs').style.display='none'; $('#app').innerHTML=V.planEditor(); return; }
-  $('#tabs').style.display = '';
-  $('#app').innerHTML = V[S.tab]();
-  const T = (k, i) => '<button class="t '+(S.tab === k ? 'on' : '')+'" onclick="go(\''+k+'\')" aria-label="'+k+'">'+ic(i,24)+'<i></i></button>';
-  $('#tabs').innerHTML = T('home','home')+T('corridas','chart')+'<button class="fab" onclick="go(\'correr\')" aria-label="Correr">'+ic('play',26)+'</button>'+T('metas','award')+T('treino','cal');
-}
-function render() { render0(); afterRender(); }
+  $('#tabs').style.display='';
+  if(S.sessionSaved) $('#app').innerHTML=V.sessionSuccess();
+  else if(S.activeWorkout) $('#app').innerHTML=S.sessionView==='log'?V.sessionLog():V.sessionDetail();
+  else if(S.planEditor) $('#app').innerHTML=V.planEditor();
+  else $('#app').innerHTML=V[S.tab]();
+  $('#tabs').innerHTML=tabBarHtml();
+}function render() { render0(); afterRender(); }
 function go(t) { if(t==='correr') previewRequested=false; S.tab=t; S.err=''; S.activeWorkout=null; S.sessionSaved=null; S.planEditor=false; render(); window.scrollTo(0,0); }
 function calc() {
   const d = num($('#kd').value), t = toSecs($('#kt').value), p = toSecs($('#kp').value); let r = null;
@@ -440,7 +442,7 @@ async function importPlanFile(input) {
     saveNewPlan(planFromRows(rows,file.name.replace(/\.[^.]+$/,'')));
   } catch(e) { S.planImportErr=e.message||'Não consegui ler esta planilha.'; render(); }
   finally { input.value=''; }
-}function openWorkout(weekIndex,sessionIndex) { if(!sessionKey(weekIndex,sessionIndex)) return; S.activeWorkout={weekIndex,sessionIndex}; S.sessionView='detail'; S.sessionLogErr=''; S.sessionSaved=null; render(); window.scrollTo(0,0); }
+}function openWorkout(weekIndex,sessionIndex) { const weeks=getPlanWeeks(), w=weeks[weekIndex], day=w&&Array.isArray(w.dias)?w.dias[sessionIndex]:null; if(!day) { S.err='Não encontrei os detalhes deste treino. Atualize o plano e tente novamente.'; return render(); } S.err=''; S.activeWorkout={weekIndex,sessionIndex}; S.sessionView='detail'; S.sessionLogErr=''; S.sessionSaved=null; render(); window.scrollTo(0,0); }
 function closeWorkout() { S.activeWorkout=null; S.sessionView='detail'; S.sessionLogErr=''; render(); window.scrollTo(0,0); }
 function openSessionLog() { if(!activeWorkoutData()) return; S.sessionView='log'; S.sessionLogErr=''; render(); window.scrollTo(0,0); }
 function backToSessionDetails() { S.sessionView='detail'; S.sessionLogErr=''; render(); }
@@ -496,7 +498,7 @@ function weekCard(w,index,start) {
   const segments=days.map((d,j)=>'<i class="week-segment '+(S.completed[sessionKey(index,j)]?'done':'')+'"></i>').join('');
   const rows=days.map((d,j)=>{
     const type=d.tipo||d.n||'Treino', dia=d.dia||('Treino '+(j+1)), done=!!S.completed[sessionKey(index,j)], distance=Number(d.km)>0?String(d.km).replace('.',',')+' km':'';
-    return '<div class="session-item '+(done?'is-complete':'')+'"><button class="session-open" aria-label="Abrir detalhes: '+type+'" onclick="openWorkout('+index+','+j+')"><span class="session-day">'+dia+'</span><span class="workout-badge '+workoutClass(type)+'"></span><span class="session-title">'+type+'</span><span class="session-distance">'+distance+'</span>'+(done?'<span class="session-done-marker" aria-label="Concluído">'+ic('check',15)+'</span>':'')+ic('back',18)+'</button></div>';
+return '<div class="session-item '+(done?'is-complete':'')+'"><button class="session-open" type="button" aria-label="Abrir detalhes: '+type+'" onclick="event.stopPropagation();openWorkout('+index+','+j+')"><span class="session-day">'+dia+'</span><span class="workout-badge '+workoutClass(type)+'"></span><span class="session-title">'+type+'</span><span class="session-distance">'+distance+'</span>'+(done?'<span class="session-done-marker" aria-label="Concluído">'+ic('check',15)+'</span>':'')+ic('back',18)+'</button></div>';
   }).join('');
   return '<article class="week-card '+(open?'is-open':'')+'"><button class="week-toggle" aria-expanded="'+open+'" onclick="toggleWeek('+index+')"><span class="week-topline">'+weekDateLabel(start,index)+'</span><span class="week-heading"><b>'+title+'</b>'+ic('back',21)+'</span><span class="week-progress" aria-label="'+completed+' de '+days.length+' treinos concluídos">'+segments+'</span><span class="week-progress-label">'+completed+' de '+days.length+' treinos concluídos</span><span class="week-stats"><span>Total de treinos: <b>'+days.length+'</b></span><span>Distância: <b>'+total.toFixed(2).replace('.',',')+' km</b></span></span></button>'+(open ? '<div class="week-sessions">'+(w.foco ? '<p class="week-focus">'+w.foco+'</p>' : '')+rows+'</div>' : '')+'</article>';
 }const semChips = () => S.treino.semanas.length > 1 ? '<div class="chips">'+S.treino.semanas.map((w, i) => '<button class="chip '+(semAtual() === i ? 'on' : '')+'" onclick="setSem('+i+')">Semana '+(i+1)+'</button>').join('')+'</div>' : '';
